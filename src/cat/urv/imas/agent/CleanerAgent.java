@@ -1,6 +1,9 @@
 package cat.urv.imas.agent;
 
-public class CleanerAgent extends ImasAgent {
+import cat.urv.imas.behaviour.SetupBehaviour;
+import jade.core.AID;
+
+public class CleanerAgent extends ImasAgentTuned {
     
     public CleanerAgent() {
         super( AgentType.CLEANER );
@@ -8,11 +11,23 @@ public class CleanerAgent extends ImasAgent {
     
     @Override
     protected void setup() {
-        super.setup();
+        /* ** Very Important Line (VIL) ***************************************/
+        this.setEnabledO2ACommunication(true, 1);
+        /* ********************************************************************/
+
+        // Register the agent to the DF
+        registerDF();
+        
+        // Add previous agents (Cleaner Coordinator)
+        AID cleanerCoordinator = searchAgent( AgentType.CLEANER_COORDINATOR.toString() );
+        addPreviousAgent( cleanerCoordinator );
+        
+        // Add behaviour
+        addBehaviour( new SetupBehaviour(this) );
     }
 
     @Override
     protected void takeDown() {
-        super.takeDown();
+        deRegisterDF();
     }
 }
