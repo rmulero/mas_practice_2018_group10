@@ -17,15 +17,11 @@
  */
 package cat.urv.imas.agent;
 
+import cat.urv.imas.behaviour.SetupBehaviour;
 import cat.urv.imas.ontology.InitialGameSettings;
 import cat.urv.imas.ontology.GameSettings;
 import cat.urv.imas.gui.GraphicInterface;
-import cat.urv.imas.behaviour.system.RequestResponseBehaviour;
 import jade.core.*;
-import jade.domain.*;
-import jade.domain.FIPAAgentManagement.*;
-import jade.domain.FIPANames.InteractionProtocol;
-import jade.lang.acl.*;
 
 
 /**
@@ -33,22 +29,18 @@ import jade.lang.acl.*;
  * TODO: You have to decide the onthology and protocol when interacting among
  * the Coordinator agent.
  */
-public class SystemAgent extends ImasAgent {
+public class SystemAgent extends ImasAgentTuned {
 
     /**
      * GUI with the map, system agent log and statistics.
      */
     private GraphicInterface gui;
+    
     /**
      * Game settings. At the very beginning, it will contain the loaded
      * initial configuration settings.
      */
     private InitialGameSettings game;
-    /**
-     * The Coordinator agent with which interacts sharing game settings every
-     * round.
-     */
-    private AID coordinatorAgent;
 
     /**
      * Builds the System agent.
@@ -115,53 +107,37 @@ public class SystemAgent extends ImasAgent {
         this.setEnabledO2ACommunication(true, 1);
 
         // 1. Register the agent to the DF
-        ServiceDescription sd1 = new ServiceDescription();
-        sd1.setType(AgentType.SYSTEM.toString());
-        sd1.setName(getLocalName());
-        sd1.setOwnership(OWNER);
-
-        DFAgentDescription dfd = new DFAgentDescription();
-        dfd.addServices(sd1);
-        dfd.setName(getAID());
-        try {
-            DFService.register(this, dfd);
-            log("Registered to the DF");
-        } catch (FIPAException e) {
-            System.err.println(getLocalName() + " failed registration to DF [ko]. Reason: " + e.getMessage());
-            doDelete();
-        }
+        registerDF();
 
         // 2. Load game settings.
-        this.game = InitialGameSettings.load("game.settings");
+        InitialGameSettings settings = InitialGameSettings.load("game.settings");
+        setGameSettings( settings );
         log("Initial configuration settings loaded");
+        settings.addElementsForThisSimulationStep();
 
         // 3. Load GUI
         try {
-            this.gui = new GraphicInterface(game);
+            this.gui = new GraphicInterface( settings );
             gui.setVisible(true);
             log("GUI loaded");
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        // search CoordinatorAgent
-        ServiceDescription searchCriterion = new ServiceDescription();
-        searchCriterion.setType(AgentType.COORDINATOR.toString());
-        this.coordinatorAgent = UtilsAgents.searchAgent(this, searchCriterion);
-        // searchAgent is a blocking method, so we will obtain always a correct AID
-
-        // add behaviours
-        // we wait for the initialization of the game
-        MessageTemplate mt = MessageTemplate.and(
-                MessageTemplate.MatchProtocol(InteractionProtocol.FIPA_REQUEST), 
-                MessageTemplate.MatchPerformative(ACLMessage.REQUEST));
-
-        this.addBehaviour(new RequestResponseBehaviour(this, mt));
-
-        // Setup finished. When the last inform is received, the agent itself will add
-        // a behaviour to send/receive actions
+        // Add next agents (Coordinator Agent)
+        AID coordinatorAgent = searchAgent( AgentType.COORDINATOR.toString() );
+        addNextAgent( coordinatorAgent );
+        
+        // Add behaviour
+        addBehaviour( new SetupBehaviour(this, SetupBehaviour.SEND_MAP) );
     }
 
+    @Override
+    protected void takeDown() {
+        deRegisterDF();
+        gui.dispose();
+    }
+    
     public void updateGUI() {
         this.gui.updateGame();
     }

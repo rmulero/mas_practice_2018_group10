@@ -17,31 +17,22 @@
  */
 package cat.urv.imas.agent;
 
+import cat.urv.imas.behaviour.SetupBehaviour;
 import cat.urv.imas.ontology.GameSettings;
-import cat.urv.imas.behaviour.coordinator.RequesterBehaviour;
-import cat.urv.imas.ontology.MessageContent;
 import jade.core.*;
-import jade.domain.*;
-import jade.domain.FIPAAgentManagement.*;
-import jade.domain.FIPANames.InteractionProtocol;
-import jade.lang.acl.*;
 
 /**
  * The main Coordinator agent. 
  * TODO: This coordinator agent should get the game settings from the System
  * agent every round and share the necessary information to other coordinators.
  */
-public class CoordinatorAgent extends ImasAgent {
+public class CoordinatorAgent extends ImasAgentTuned {
 
     /**
      * Game settings in use.
      */
     private GameSettings game;
-    /**
-     * System agent id.
-     */
-    private AID systemAgent;
-
+    
     /**
      * Builds the coordinator agent.
      */
@@ -61,48 +52,27 @@ public class CoordinatorAgent extends ImasAgent {
         /* ********************************************************************/
 
         // Register the agent to the DF
-        ServiceDescription sd1 = new ServiceDescription();
-        sd1.setType(AgentType.COORDINATOR.toString());
-        sd1.setName(getLocalName());
-        sd1.setOwnership(OWNER);
+        registerDF();
+
+        // Add previous agents (System Agent)
+        AID systemAgent = searchAgent( AgentType.SYSTEM.toString() );
+        addPreviousAgent( systemAgent );
         
-        DFAgentDescription dfd = new DFAgentDescription();
-        dfd.addServices(sd1);
-        dfd.setName(getAID());
-        try {
-            DFService.register(this, dfd);
-            log("Registered to the DF");
-        } catch (FIPAException e) {
-            System.err.println(getLocalName() + " registration with DF unsucceeded. Reason: " + e.getMessage());
-            doDelete();
-        }
-
-        // search SystemAgent
-        ServiceDescription searchCriterion = new ServiceDescription();
-        searchCriterion.setType(AgentType.SYSTEM.toString());
-        this.systemAgent = UtilsAgents.searchAgent(this, searchCriterion);
-        // searchAgent is a blocking method, so we will obtain always a correct AID
-
-        /* ********************************************************************/
-        ACLMessage initialRequest = new ACLMessage(ACLMessage.REQUEST);
-        initialRequest.clearAllReceiver();
-        initialRequest.addReceiver(this.systemAgent);
-        initialRequest.setProtocol(InteractionProtocol.FIPA_REQUEST);
-        log("Request message to agent");
-        try {
-            initialRequest.setContent(MessageContent.GET_MAP);
-            log("Request message content:" + initialRequest.getContent());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        //we add a behaviour that sends the message and waits for an answer
-        this.addBehaviour(new RequesterBehaviour(this, initialRequest));
-
-        // setup finished. When we receive the last inform, the agent itself will add
-        // a behaviour to send/receive actions
+        // Add next agents (Cleaner and Searcher Coordinators)
+        AID cleanerCoordinator = searchAgent( AgentType.CLEANER_COORDINATOR.toString() );
+        AID searcherCoordinator = searchAgent( AgentType.ESEARCHER_COORDINATOR.toString() );
+        addNextAgent( cleanerCoordinator );
+        addNextAgent( searcherCoordinator );
+        
+        // Add behaviour
+        addBehaviour( new SetupBehaviour(this) );
     }
 
+    @Override
+    protected void takeDown() {
+        deRegisterDF();
+    }
+    
     /**
      * Update the game settings.
      *
