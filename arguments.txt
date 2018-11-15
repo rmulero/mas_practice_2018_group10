@@ -1,0 +1,7 @@
+# Copy and paste the reqquired line in the "arguments" field on the "run_jade" execution profile
+# Arguments for first delivery
+-gui sysag:cat.urv.imas.agent.SystemAgent;crdag:cat.urv.imas.agent.CoordinatorAgent;clcoord:cat.urv.imas.agent.CleanerCoordinator;secoord:cat.urv.imas.agent.EsearcherCoordinator;clag1:cat.urv.imas.agent.CleanerAgent;clag2:cat.urv.imas.agent.CleanerAgent;clag3:cat.urv.imas.agent.CleanerAgent;seag1:cat.urv.imas.agent.SearcherAgent;seag2:cat.urv.imas.agent.SearcherAgent;seag3:cat.urv.imas.agent.SearcherAgent;seag4:cat.urv.imas.agent.SearcherAgent
+
+# Arguments for second delivery
+
+# Arguments for last delivery
