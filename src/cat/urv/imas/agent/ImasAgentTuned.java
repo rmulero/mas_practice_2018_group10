@@ -19,7 +19,7 @@ import java.util.List;
  *
  * @author Rafael Mulero
  */
-public class ImasAgentTuned extends ImasAgent {
+public abstract class ImasAgentTuned extends ImasAgent {
     
     private GameSettings gameSettings;
     
@@ -99,4 +99,6 @@ public class ImasAgentTuned extends ImasAgent {
         AID agentId = UtilsAgents.searchAgent(this, searchCriterion);
         return agentId;
     }
+    
+    protected abstract void onSettingsReceived( GameSettings gameSettings );
 }
