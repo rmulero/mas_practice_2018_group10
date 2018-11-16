@@ -215,7 +215,39 @@ public class GameSettings implements java.io.Serializable {
 
     public String toString() {
         //TODO: show a human readable summary of the game settings.
-        return "Game settings";
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append( "---------------------------\n" );
+        sb.append( "Agent positions\n");
+        sb.append( "---------------------------\n" );
+        for ( AgentType type : agentList.keySet() ){
+            List<Cell> cells = agentList.get( type );
+            sb.append( type ).append( " :" );
+            for ( Cell cell : cells ) {
+                sb.append( " [" ).append( cell.getRow() );
+                sb.append( "," ).append( cell.getCol() );
+                sb.append( "]" );
+            }
+            sb.append( "\n" );
+        }
+        
+        sb.append( "---------------------------\n" );
+        sb.append( "Charging / Recycling points\n" );
+        sb.append( "---------------------------\n" );
+        CellType[] cellTypes = {CellType.BATTERIES_CHARGE_POINT, CellType.RECYCLING_POINT_CENTER};
+        for ( CellType type : cellTypes ) {
+            List<Cell> cells = cellsOfType.get( type );
+            sb.append( type ).append( " :" );
+            for ( Cell cell : cells ) {
+                sb.append( " [" ).append( cell.getRow() );
+                sb.append( "," ).append( cell.getCol() );
+                sb.append( "]" );
+            }
+            sb.append( "\n" );
+        }
+        sb.append( "---------------------------" );
+        
+        return sb.toString();
     }
 
     public String getShortString() {
