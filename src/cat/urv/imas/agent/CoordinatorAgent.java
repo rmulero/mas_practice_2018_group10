@@ -91,4 +91,8 @@ public class CoordinatorAgent extends ImasAgentTuned {
         return this.game;
     }
 
+    @Override
+    public void onSettingsReceived(GameSettings gameSettings) {
+        
+    }
 }

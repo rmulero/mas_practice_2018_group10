@@ -142,4 +142,8 @@ public class SystemAgent extends ImasAgentTuned {
         this.gui.updateGame();
     }
 
+    @Override
+    public void onSettingsReceived(GameSettings gameSettings) {
+        
+    }
 }

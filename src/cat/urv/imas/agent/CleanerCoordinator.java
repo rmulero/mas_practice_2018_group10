@@ -1,6 +1,7 @@
 package cat.urv.imas.agent;
 
 import cat.urv.imas.behaviour.SetupBehaviour;
+import cat.urv.imas.ontology.GameSettings;
 import jade.core.AID;
 
 public class CleanerCoordinator extends ImasAgentTuned {
@@ -40,4 +41,9 @@ public class CleanerCoordinator extends ImasAgentTuned {
         deRegisterDF();
     }
     
+    
+    @Override
+    public void onSettingsReceived(GameSettings gameSettings) {
+        
+    }
 }

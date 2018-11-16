@@ -1,6 +1,7 @@
 package cat.urv.imas.agent;
 
 import cat.urv.imas.behaviour.SetupBehaviour;
+import cat.urv.imas.ontology.GameSettings;
 import jade.core.AID;
 
 public class EsearcherCoordinator extends ImasAgentTuned {
@@ -39,5 +40,10 @@ public class EsearcherCoordinator extends ImasAgentTuned {
     @Override
     protected void takeDown() {
         deRegisterDF();
+    }
+    
+    @Override
+    public void onSettingsReceived(GameSettings gameSettings) {
+        
     }
 }
