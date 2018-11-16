@@ -100,5 +100,5 @@ public abstract class ImasAgentTuned extends ImasAgent {
         return agentId;
     }
     
-    protected abstract void onSettingsReceived( GameSettings gameSettings );
+    public abstract void onSettingsReceived( GameSettings gameSettings );
 }
