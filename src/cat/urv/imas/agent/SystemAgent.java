@@ -21,7 +21,12 @@ import cat.urv.imas.ontology.InitialGameSettings;
 import cat.urv.imas.ontology.GameSettings;
 import cat.urv.imas.gui.GraphicInterface;
 import cat.urv.imas.map.Cell;
+import cat.urv.imas.ontology.MessageContent;
 import jade.core.*;
+import jade.domain.FIPANames;
+import jade.lang.acl.ACLMessage;
+import jade.proto.AchieveREInitiator;
+import java.io.IOException;
 import java.util.List;
 
 
@@ -112,11 +117,12 @@ public class SystemAgent extends ImasAgentTuned {
 
         // 2. Load game settings.
         InitialGameSettings settings = InitialGameSettings.load( "game.settings" );
-        setGameSettings( settings );
+        this.game = settings;
+        
         log( "Initial configuration settings loaded" );
         settings.addElementsForThisSimulationStep();
         setupSettings( settings );
-        
+       
         // 3. Load GUI
         try {
             this.gui = new GraphicInterface( settings );
@@ -148,8 +154,8 @@ public class SystemAgent extends ImasAgentTuned {
         AID coordinatorAgent = searchAgent( AgentType.COORDINATOR.toString() );
         addNextAgent( coordinatorAgent );
         
-        // Add behaviour
-        //addBehaviour( new SetupBehaviour(this, SetupBehaviour.SEND_MAP) );
+        // Start simulation
+        requestActions();
     }
 
     @Override
@@ -165,5 +171,111 @@ public class SystemAgent extends ImasAgentTuned {
     @Override
     public void setupSettings(GameSettings gameSettings) {
         log( gameSettings.toString() );
+        maxSteps = gameSettings.getSimulationSteps();
+    }
+    
+    private int maxSteps = 0;
+    private int currentStep = 1;
+    
+    /*******  Communications  ********/
+    public void requestActions(){
+        
+        log("Requesting actions for step " + currentStep);
+        
+        ACLMessage message = new ACLMessage( ACLMessage.REQUEST );
+        message.setProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST );
+        message.setContent( MessageContent.GET_ACTIONS );
+        
+        for( AID nextAgent : getNextAgents() ){
+            message.addReceiver( nextAgent );
+        }
+        
+        // Add behaviour to handle REQUEST responses
+        addBehaviour(new AchieveREInitiator( this, message ) {
+            
+            @Override
+            protected void handleAgree( ACLMessage agree ) {
+                log( "AGREE received from " + ((AID) agree.getSender()).getLocalName() );
+            }
+            
+            @Override
+            protected void handleRefuse( ACLMessage refuse ) {
+                log( "REFUSE received from " + ((AID) refuse.getSender()).getLocalName() );
+            }
+            
+            @Override
+            protected void handleInform( ACLMessage inform ) {
+                log( "INFORM received from " + ((AID) inform.getSender()).getLocalName() );
+                onActionsReceived();
+            }
+            
+            @Override
+            protected void handleFailure( ACLMessage failure ) {
+                log( "FAILURE received from " + ((AID) failure.getSender()).getLocalName() );
+            }
+        });
+    }
+    
+    public void onActionsReceived(){
+        log( "Actions received" );
+        requestUpdate();
+    }
+    
+    public void requestUpdate(){
+        log("Requesting updates for step " + currentStep);
+        
+        ACLMessage message = new ACLMessage( ACLMessage.REQUEST );
+        message.setProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST );
+        
+        try {
+            message.setContentObject( game );
+            
+            for( AID nextAgent : getNextAgents() ){
+                message.addReceiver( nextAgent );
+            }
+
+            // Add behaviour to handle REQUEST responses
+            addBehaviour(new AchieveREInitiator( this, message ) {
+
+                @Override
+                protected void handleAgree( ACLMessage agree ) {
+                    log( "AGREE received from " + ((AID) agree.getSender()).getLocalName() );
+                }
+
+                @Override
+                protected void handleRefuse( ACLMessage refuse ) {
+                    log( "REFUSE received from " + ((AID) refuse.getSender()).getLocalName() );
+                }
+
+                @Override
+                protected void handleInform( ACLMessage inform ) {
+                    log( "INFORM received from " + ((AID) inform.getSender()).getLocalName() );
+                    onUpdateConfirmed();
+                }
+
+                @Override
+                protected void handleFailure( ACLMessage failure ) {
+                    log( "FAILURE received from " + ((AID) failure.getSender()).getLocalName() );
+                }
+            });
+            
+        } catch (IOException ex) {
+            log( "Unable to perform update. Content cannot be set into the message." );
+        }
+    }
+    
+    public void onUpdateConfirmed(){
+        log("Updates confirmed");
+        
+        currentStep++;
+        
+        if ( currentStep <= maxSteps ){
+            addElementsForThisSimulationStep();
+            updateGUI();
+            
+            requestActions();
+        } else {
+            log( "SIMULATION FINISHED" );
+        }
     }
 }

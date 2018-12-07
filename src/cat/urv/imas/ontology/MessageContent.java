@@ -28,4 +28,5 @@ public class MessageContent {
      */
     public static final String GET_MAP = "Get map";
     
+    public static final String GET_ACTIONS = "Get actions";
 }

@@ -18,7 +18,12 @@
 package cat.urv.imas.agent;
 
 import cat.urv.imas.ontology.GameSettings;
+import cat.urv.imas.ontology.MessageContent;
 import jade.core.*;
+import jade.domain.FIPANames;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
+import jade.proto.AchieveREResponder;
 
 /**
  * The main Coordinator agent. 
@@ -67,8 +72,8 @@ public class CoordinatorAgent extends ImasAgentTuned {
         addNextAgent( cleanerCoordinator );
         addNextAgent( searcherCoordinator );
         
-        // Add behaviour
-        //addBehaviour( new SetupBehaviour(this) );
+        // Wait first REQUEST
+        waitForActions();
     }
 
     @Override
@@ -97,5 +102,97 @@ public class CoordinatorAgent extends ImasAgentTuned {
     @Override
     public void setupSettings(GameSettings gameSettings) {
         setGame( gameSettings );
+    }
+    
+    /*******  Communications  ********/
+    public void waitForActions(){
+        MessageTemplate protocolAndPerformative = MessageTemplate.and(
+  		MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
+  		MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
+        );
+        
+        MessageTemplate template = MessageTemplate.and(
+                protocolAndPerformative, 
+                MessageTemplate.MatchContent( MessageContent.GET_ACTIONS )
+        );
+        
+        addBehaviour(new AchieveREResponder(this, template) {
+            
+            @Override
+            protected ACLMessage prepareResponse(ACLMessage request) {
+                log( "REQUEST received from " + request.getSender().getName() + ". Action is ( " + request.getContent() + " )" );
+                
+                log( "Sending AGREE" );
+                ACLMessage agree = request.createReply();
+                agree.setPerformative(ACLMessage.AGREE);
+                return agree;
+            }
+
+            @Override
+            protected ACLMessage prepareResultNotification( ACLMessage request, ACLMessage response ) {
+                ACLMessage reqResponse = requestActions( request );
+                waitForUpdate();
+                return reqResponse;
+            }
+        });
+    }
+    
+    public ACLMessage requestActions( ACLMessage request ){
+        log( "Actions requested" );
+        return onActionsReceived( request );
+    }
+    
+    public ACLMessage onActionsReceived( ACLMessage request ){
+        log( "Sending INFORM (actions)" );
+        ACLMessage inform = request.createReply();
+        inform.setPerformative( ACLMessage.INFORM );
+        return inform;
+    }
+    
+    public void waitForUpdate(){
+        MessageTemplate protocolAndPerformative = MessageTemplate.and(
+  		MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
+  		MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
+        );
+        
+        MessageTemplate noActions = MessageTemplate.not(
+                MessageTemplate.MatchContent( MessageContent.GET_ACTIONS )
+        );
+        
+        MessageTemplate template = MessageTemplate.and(
+                protocolAndPerformative, noActions
+        );
+        
+        addBehaviour(new AchieveREResponder(this, template) {
+            
+            @Override
+            protected ACLMessage prepareResponse(ACLMessage request) {
+                log( "REQUEST received from " + request.getSender().getName() + ". Action is ( Update agents )" );
+                
+                log( "Sending AGREE" );
+                ACLMessage agree = request.createReply();
+                agree.setPerformative(ACLMessage.AGREE);
+                return agree;
+            }
+
+            @Override
+            protected ACLMessage prepareResultNotification( ACLMessage request, ACLMessage response ) {
+                ACLMessage reqResponse = requestUpdate( request );
+                waitForActions();
+                return reqResponse;
+            }
+        });
+    }
+    
+    public ACLMessage requestUpdate( ACLMessage request ){
+        log( "Update requested" );
+        return onUpdateConfirmed( request );
+    }
+    
+    public ACLMessage onUpdateConfirmed( ACLMessage request ){
+        log( "Sending INFORM (updates)" );
+        ACLMessage inform = request.createReply();
+        inform.setPerformative( ACLMessage.INFORM );
+        return inform;
     }
 }
