@@ -1,8 +1,9 @@
 package cat.urv.imas.agent;
 
-import cat.urv.imas.behaviour.SetupBehaviour;
+import cat.urv.imas.map.Cell;
 import cat.urv.imas.ontology.GameSettings;
 import jade.core.AID;
+import java.util.List;
 
 public class CleanerCoordinator extends ImasAgentTuned {
     
@@ -19,20 +20,16 @@ public class CleanerCoordinator extends ImasAgentTuned {
         // Register the agent to the DF
         registerDF();
         
+        // Get initial game settings
+        GameSettings settings = (GameSettings) getArguments()[0];
+        setupSettings( settings );
+        
         // Add previous agents (Coordinator Agent)
         AID coordinatorAgent = searchAgent( AgentType.COORDINATOR.toString() );
         addPreviousAgent( coordinatorAgent );
         
-        // Add next agents (Cleaner Workers)
-        AID cleanerAgent1 = searchAgent( AgentType.CLEANER.toString(), "clag1" );
-        AID cleanerAgent2 = searchAgent( AgentType.CLEANER.toString(), "clag2" );
-        AID cleanerAgent3 = searchAgent( AgentType.CLEANER.toString(), "clag3" );
-        addNextAgent( cleanerAgent1 );
-        addNextAgent( cleanerAgent2 );
-        addNextAgent( cleanerAgent3 );
-        
         // Add behaviour
-        addBehaviour( new SetupBehaviour(this) );
+        //addBehaviour( new SetupBehaviour(this) );
         
     }
 
@@ -43,7 +40,15 @@ public class CleanerCoordinator extends ImasAgentTuned {
     
     
     @Override
-    public void onSettingsReceived(GameSettings gameSettings) {
+    public void setupSettings( GameSettings gameSettings ) {
         
+        List<Cell> cleaners = gameSettings.getAgentList().get( AgentType.CLEANER );
+        for ( int i = 0; i < cleaners.size(); ++i ){
+            String name = "clag" + i;
+            AID cleanerAgent = searchAgent( AgentType.CLEANER.toString(), name );
+            addNextAgent( cleanerAgent );
+        }
+        
+        log( "Number of cleaners = " + getNextAgents().size() );
     }
 }

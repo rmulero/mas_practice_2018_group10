@@ -126,7 +126,7 @@ public class SetupBehaviour extends Behaviour{
             GameSettings game = (GameSettings) msg.getContentObject();
             agent.setGameSettings(game);
             agent.log( "Initial map received from " + sender );
-            agent.onSettingsReceived(game);
+            agent.setupSettings(game);
 
             // Go to "send map" step
             step = SEND_MAP;

@@ -1,6 +1,5 @@
 package cat.urv.imas.agent;
 
-import cat.urv.imas.behaviour.SetupBehaviour;
 import cat.urv.imas.map.Cell;
 import cat.urv.imas.map.CellType;
 import cat.urv.imas.ontology.GameSettings;
@@ -29,12 +28,16 @@ public class SearcherAgent extends ImasAgentTuned {
         // Register the agent to the DF
         registerDF();
         
+        // Get initial game settings
+        GameSettings settings = (GameSettings) getArguments()[0];
+        setupSettings( settings );
+        
         // Add previous agents (Searcher Coordinator)
         AID searcherCoordinator = searchAgent( AgentType.ESEARCHER_COORDINATOR.toString() );
-        addPreviousAgent(searcherCoordinator );
+        addPreviousAgent( searcherCoordinator );
         
         // Add behaviour
-        addBehaviour( new SetupBehaviour(this) );
+        //addBehaviour( new SetupBehaviour(this) );
     }
 
     @Override
@@ -43,7 +46,7 @@ public class SearcherAgent extends ImasAgentTuned {
     }
     
     @Override
-    public void onSettingsReceived(GameSettings gameSettings) {
+    public void setupSettings(GameSettings gameSettings) {
         // get autonomy
         this.maxSteps = gameSettings.geteSearcherMaxSteps();
         
@@ -56,7 +59,7 @@ public class SearcherAgent extends ImasAgentTuned {
         String localName = getLocalName();
         localName = localName.replace("seag", "");
         int index = Integer.valueOf( localName );
-        this.position = agents.get( index-1 );
+        this.position = agents.get( index );
         
         log( "Position [" + position.getRow() + "," + position.getCol() + "]");
         log( "Autonomy (" + maxSteps + ")" );

@@ -88,6 +88,7 @@ public abstract class ImasAgentTuned extends ImasAgent {
     protected AID searchAgent( String agentType ) {
         ServiceDescription searchCriterion = new ServiceDescription();
         searchCriterion.setType( agentType );
+        
         AID agentId = UtilsAgents.searchAgent(this, searchCriterion);
         return agentId;
     }
@@ -96,9 +97,10 @@ public abstract class ImasAgentTuned extends ImasAgent {
         ServiceDescription searchCriterion = new ServiceDescription();
         searchCriterion.setType( agentType );
         searchCriterion.setName( name );
+        
         AID agentId = UtilsAgents.searchAgent(this, searchCriterion);
         return agentId;
     }
     
-    public abstract void onSettingsReceived( GameSettings gameSettings );
+    public abstract void setupSettings( GameSettings gameSettings );
 }

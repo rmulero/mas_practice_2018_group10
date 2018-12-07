@@ -1,8 +1,9 @@
 package cat.urv.imas.agent;
 
-import cat.urv.imas.behaviour.SetupBehaviour;
+import cat.urv.imas.map.Cell;
 import cat.urv.imas.ontology.GameSettings;
 import jade.core.AID;
+import java.util.List;
 
 public class EsearcherCoordinator extends ImasAgentTuned {
     
@@ -19,22 +20,16 @@ public class EsearcherCoordinator extends ImasAgentTuned {
         // Register the agent to the DF
         registerDF();
         
+        // Get initial game settings
+        GameSettings settings = (GameSettings) getArguments()[0];
+        setupSettings( settings );
+        
         // Add previous agents (Coordinator Agent)
         AID coordinatorAgent = searchAgent( AgentType.COORDINATOR.toString() );
         addPreviousAgent( coordinatorAgent );
         
-        // Add next agents (Searcher Workers)
-        AID searcherAgent1 = searchAgent( AgentType.SEARCHER.toString(), "seag1" );
-        AID searcherAgent2 = searchAgent( AgentType.SEARCHER.toString(), "seag2" );
-        AID searcherAgent3 = searchAgent( AgentType.SEARCHER.toString(), "seag3" );
-        AID searcherAgent4 = searchAgent( AgentType.SEARCHER.toString(), "seag4" );
-        addNextAgent( searcherAgent1 );
-        addNextAgent( searcherAgent2 );
-        addNextAgent( searcherAgent3 );
-        addNextAgent( searcherAgent4 );
-        
         // Add behaviour
-        addBehaviour( new SetupBehaviour(this) );
+        //addBehaviour( new SetupBehaviour(this) );
     }
 
     @Override
@@ -43,7 +38,15 @@ public class EsearcherCoordinator extends ImasAgentTuned {
     }
     
     @Override
-    public void onSettingsReceived(GameSettings gameSettings) {
+    public void setupSettings( GameSettings gameSettings ) {
         
+        List<Cell> searchers = gameSettings.getAgentList().get( AgentType.SEARCHER );
+        for ( int i = 0; i < searchers.size(); ++i ){
+            String name = "seag" + i;
+            AID searcherAgent = searchAgent( AgentType.SEARCHER.toString(), name );
+            addNextAgent( searcherAgent );
+        }
+        
+        log( "Number of searchers = " + getNextAgents().size() );
     }
 }

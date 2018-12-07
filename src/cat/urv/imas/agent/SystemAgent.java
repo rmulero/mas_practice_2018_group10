@@ -17,11 +17,12 @@
  */
 package cat.urv.imas.agent;
 
-import cat.urv.imas.behaviour.SetupBehaviour;
 import cat.urv.imas.ontology.InitialGameSettings;
 import cat.urv.imas.ontology.GameSettings;
 import cat.urv.imas.gui.GraphicInterface;
+import cat.urv.imas.map.Cell;
 import jade.core.*;
+import java.util.List;
 
 
 /**
@@ -46,7 +47,7 @@ public class SystemAgent extends ImasAgentTuned {
      * Builds the System agent.
      */
     public SystemAgent() {
-        super(AgentType.SYSTEM);
+        super( AgentType.SYSTEM );
     }
 
     /**
@@ -56,9 +57,9 @@ public class SystemAgent extends ImasAgentTuned {
      * @param log String to show
      */
     @Override
-    public void log(String log) {
-        if (gui != null) {
-            gui.log(getLocalName()+ ": " + log + "\n");
+    public void log( String log ) {
+        if ( gui != null ) {
+            gui.log( getLocalName()+ ": " + log + "\n" );
         }
         super.log(log);
     }
@@ -70,9 +71,9 @@ public class SystemAgent extends ImasAgentTuned {
      * @param error Error to show
      */
     @Override
-    public void errorLog(String error) {
+    public void errorLog( String error) {
         if (gui != null) {
-            gui.log("ERROR: " + getLocalName()+ ": " + error + "\n");
+            gui.log( "ERROR: " + getLocalName()+ ": " + error + "\n" );
         }
         super.errorLog(error);
     }
@@ -110,26 +111,45 @@ public class SystemAgent extends ImasAgentTuned {
         registerDF();
 
         // 2. Load game settings.
-        InitialGameSettings settings = InitialGameSettings.load("game.settings");
+        InitialGameSettings settings = InitialGameSettings.load( "game.settings" );
         setGameSettings( settings );
-        log("Initial configuration settings loaded");
+        log( "Initial configuration settings loaded" );
         settings.addElementsForThisSimulationStep();
-
+        setupSettings( settings );
+        
         // 3. Load GUI
         try {
             this.gui = new GraphicInterface( settings );
             gui.setVisible(true);
-            log("GUI loaded");
-        } catch (Exception e) {
+            log( "GUI loaded" );
+        } catch ( Exception e ) {
             e.printStackTrace();
         }
 
+        // Create the agents dynamically
+        Object[] arguments = { settings };
+        UtilsAgents.createAgent( this.getContainerController(), "ca", CoordinatorAgent.class.getName(), arguments);
+        UtilsAgents.createAgent( this.getContainerController(), "cc", CleanerCoordinator.class.getName(), arguments);
+        UtilsAgents.createAgent( this.getContainerController(), "sc", EsearcherCoordinator.class.getName(), arguments);
+        
+        List<Cell> cleaners = settings.getAgentList().get( AgentType.CLEANER );
+        for( int i = 0; i < cleaners.size(); ++i ){
+            String name = "clag" + i;
+            UtilsAgents.createAgent( this.getContainerController(), name, CleanerAgent.class.getName(), arguments );
+        }
+        
+        List<Cell> searchers = settings.getAgentList().get( AgentType.SEARCHER );
+        for( int i = 0; i < searchers.size(); ++i ){
+            String name = "seag" + i;
+            UtilsAgents.createAgent( this.getContainerController(), name, SearcherAgent.class.getName(), arguments );
+        }
+        
         // Add next agents (Coordinator Agent)
         AID coordinatorAgent = searchAgent( AgentType.COORDINATOR.toString() );
         addNextAgent( coordinatorAgent );
         
         // Add behaviour
-        addBehaviour( new SetupBehaviour(this, SetupBehaviour.SEND_MAP) );
+        //addBehaviour( new SetupBehaviour(this, SetupBehaviour.SEND_MAP) );
     }
 
     @Override
@@ -143,7 +163,7 @@ public class SystemAgent extends ImasAgentTuned {
     }
 
     @Override
-    public void onSettingsReceived(GameSettings gameSettings) {
-        
+    public void setupSettings(GameSettings gameSettings) {
+        log( gameSettings.toString() );
     }
 }

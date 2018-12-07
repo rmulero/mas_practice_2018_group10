@@ -17,7 +17,6 @@
  */
 package cat.urv.imas.agent;
 
-import cat.urv.imas.behaviour.SetupBehaviour;
 import cat.urv.imas.ontology.GameSettings;
 import jade.core.*;
 
@@ -54,6 +53,10 @@ public class CoordinatorAgent extends ImasAgentTuned {
         // Register the agent to the DF
         registerDF();
 
+        // Get initial game settings
+        GameSettings settings = (GameSettings) getArguments()[0];
+        setupSettings( settings );
+        
         // Add previous agents (System Agent)
         AID systemAgent = searchAgent( AgentType.SYSTEM.toString() );
         addPreviousAgent( systemAgent );
@@ -65,7 +68,7 @@ public class CoordinatorAgent extends ImasAgentTuned {
         addNextAgent( searcherCoordinator );
         
         // Add behaviour
-        addBehaviour( new SetupBehaviour(this) );
+        //addBehaviour( new SetupBehaviour(this) );
     }
 
     @Override
@@ -92,7 +95,7 @@ public class CoordinatorAgent extends ImasAgentTuned {
     }
 
     @Override
-    public void onSettingsReceived(GameSettings gameSettings) {
-        
+    public void setupSettings(GameSettings gameSettings) {
+        setGame( gameSettings );
     }
 }

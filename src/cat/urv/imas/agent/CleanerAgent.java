@@ -1,6 +1,5 @@
 package cat.urv.imas.agent;
 
-import cat.urv.imas.behaviour.SetupBehaviour;
 import cat.urv.imas.map.Cell;
 import cat.urv.imas.map.CellType;
 import cat.urv.imas.ontology.GameSettings;
@@ -29,12 +28,16 @@ public class CleanerAgent extends ImasAgentTuned {
         // Register the agent to the DF
         registerDF();
         
+        // Get initial game settings
+        GameSettings settings = (GameSettings) getArguments()[0];
+        setupSettings( settings );
+        
         // Add previous agents (Cleaner Coordinator)
         AID cleanerCoordinator = searchAgent( AgentType.CLEANER_COORDINATOR.toString() );
         addPreviousAgent( cleanerCoordinator );
         
         // Add behaviour
-        addBehaviour( new SetupBehaviour(this) );
+        //addBehaviour( new SetupBehaviour(this) );
     }
 
     @Override
@@ -43,7 +46,7 @@ public class CleanerAgent extends ImasAgentTuned {
     }
     
     @Override
-    public void onSettingsReceived(GameSettings gameSettings) {
+    public void setupSettings(GameSettings gameSettings) {
         // get capacity
         this.maxCapacity = gameSettings.getCleanerCapacity();
         
@@ -56,7 +59,7 @@ public class CleanerAgent extends ImasAgentTuned {
         String localName = getLocalName();
         localName = localName.replace("clag", "");
         int index = Integer.valueOf( localName );
-        this.position = agents.get( index-1 );
+        this.position = agents.get( index );
         
         log( "Position [" + position.getRow() + "," + position.getCol() + "]");
         log( "Capacity (" + maxCapacity  + ")" );
