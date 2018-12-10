@@ -12,6 +12,7 @@ import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
+import jade.lang.acl.ACLMessage;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -103,4 +104,23 @@ public abstract class ImasAgentTuned extends ImasAgent {
     }
     
     public abstract void setupSettings( GameSettings gameSettings );
+    
+    public void onActionsRequest( ACLMessage request ){
+    
+    }
+    public void onActionsReceived( String actions ){
+        
+    }
+    public void onActionsReceived( ACLMessage request, String actions ){
+        
+    }
+    public void onUpdateRequest( ACLMessage request ) {
+        
+    }
+    public void onUpdateConfirmed(){
+        
+    }
+    public void onUpdateConfirmed( ACLMessage request ){
+        
+    }
 }
