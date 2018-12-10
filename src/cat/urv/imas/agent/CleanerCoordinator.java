@@ -1,8 +1,14 @@
 package cat.urv.imas.agent;
 
+import cat.urv.imas.behaviour.coordinator.CoordinatorResponseActionsBehaviour;
+import cat.urv.imas.behaviour.coordinator.CoordinatorResponseUpdatesBehaviour;
 import cat.urv.imas.map.Cell;
 import cat.urv.imas.ontology.GameSettings;
+import cat.urv.imas.ontology.MessageContent;
 import jade.core.AID;
+import jade.domain.FIPANames;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
 import java.util.List;
 
 public class CleanerCoordinator extends ImasAgentTuned {
@@ -28,8 +34,8 @@ public class CleanerCoordinator extends ImasAgentTuned {
         AID coordinatorAgent = searchAgent( AgentType.COORDINATOR.toString() );
         addPreviousAgent( coordinatorAgent );
         
-        // Add behaviour
-        //addBehaviour( new SetupBehaviour(this) );
+        // Wait first request
+        waitForActionRequest();
         
     }
 
@@ -50,5 +56,69 @@ public class CleanerCoordinator extends ImasAgentTuned {
         }
         
         log( "Number of cleaners = " + getNextAgents().size() );
+    }
+    
+    /*******  Communications  ********/
+    private void waitForActionRequest(){
+        
+        MessageTemplate template = MessageTemplate.and(
+                MessageTemplate.and(
+                    MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
+                    MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
+                ), 
+                MessageTemplate.MatchContent( MessageContent.GET_ACTIONS )
+        );
+        
+        // Add behaviour to wait for REQUEST
+        addBehaviour( new CoordinatorResponseActionsBehaviour(this, template) );
+    }
+    
+    @Override
+    public void onActionsRequest( ACLMessage request ) {
+        // TODO: define what to do when the actions request is received
+    }
+    
+    @Override
+    public void onActionsReceived( ACLMessage request, String actions ){
+        
+        log( "Sending INFORM (actions)" );
+        
+        ACLMessage inform = request.createReply();
+        inform.setPerformative( ACLMessage.INFORM );
+        inform.setContent( actions );
+        send( inform );
+        
+        waitForUpdateRequest();
+    }
+    
+    private void waitForUpdateRequest(){
+        
+        MessageTemplate template = MessageTemplate.and(
+                MessageTemplate.and(
+                    MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
+                    MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
+                ),
+                MessageTemplate.not(
+                    MessageTemplate.MatchContent( MessageContent.GET_ACTIONS )
+                )
+        );
+        
+        // Add behaviour to wait for REQUEST
+        addBehaviour( new CoordinatorResponseUpdatesBehaviour(this, template) );
+    }
+    
+    @Override
+    public void onUpdateRequest( ACLMessage request ) {
+        // TODO: define what to do when the update request is received
+    }
+    
+    @Override
+    public void onUpdateConfirmed( ACLMessage request ){
+        log( "Sending INFORM (updates)" );
+        ACLMessage inform = request.createReply();
+        inform.setPerformative( ACLMessage.INFORM );
+        send( inform );
+        
+        waitForActionRequest();
     }
 }
