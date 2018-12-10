@@ -17,13 +17,16 @@
  */
 package cat.urv.imas.agent;
 
+import cat.urv.imas.behaviour.coordinator.CoordinatorRequestActionsBehaviour;
+import cat.urv.imas.behaviour.coordinator.CoordinatorRequestUpdatesBehaviour;
+import cat.urv.imas.behaviour.coordinator.CoordinatorResponseActionsBehaviour;
+import cat.urv.imas.behaviour.coordinator.CoordinatorResponseUpdatesBehaviour;
 import cat.urv.imas.ontology.GameSettings;
 import cat.urv.imas.ontology.MessageContent;
 import jade.core.*;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
-import jade.proto.AchieveREResponder;
 
 /**
  * The main Coordinator agent. 
@@ -32,10 +35,10 @@ import jade.proto.AchieveREResponder;
  */
 public class CoordinatorAgent extends ImasAgentTuned {
 
-    /**
-     * Game settings in use.
-     */
-    private GameSettings game;
+//    /**
+//     * Game settings in use.
+//     */
+//    private GameSettings game;
     
     /**
      * Builds the coordinator agent.
@@ -73,7 +76,7 @@ public class CoordinatorAgent extends ImasAgentTuned {
         addNextAgent( searcherCoordinator );
         
         // Wait first REQUEST
-        waitForActions();
+        waitForActionRequest();
     }
 
     @Override
@@ -81,118 +84,120 @@ public class CoordinatorAgent extends ImasAgentTuned {
         deRegisterDF();
     }
     
-    /**
-     * Update the game settings.
-     *
-     * @param game current game settings.
-     */
-    public void setGame(GameSettings game) {
-        this.game = game;
-    }
-
-    /**
-     * Gets the current game settings.
-     *
-     * @return the current game settings.
-     */
-    public GameSettings getGame() {
-        return this.game;
-    }
+//    /**
+//     * Update the game settings.
+//     *
+//     * @param game current game settings.
+//     */
+//    public void setGame(GameSettings game) {
+//        this.game = game;
+//    }
+//
+//    /**
+//     * Gets the current game settings.
+//     *
+//     * @return the current game settings.
+//     */
+//    public GameSettings getGame() {
+//        return this.game;
+//    }
 
     @Override
-    public void setupSettings(GameSettings gameSettings) {
-        setGame( gameSettings );
+    public void setupSettings( GameSettings gameSettings ) {
+        setGameSettings( gameSettings );
     }
     
     /*******  Communications  ********/
-    public void waitForActions(){
-        MessageTemplate protocolAndPerformative = MessageTemplate.and(
-  		MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
-  		MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
-        );
+    private void waitForActionRequest(){
         
         MessageTemplate template = MessageTemplate.and(
-                protocolAndPerformative, 
+                MessageTemplate.and(
+                    MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
+                    MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
+                ), 
                 MessageTemplate.MatchContent( MessageContent.GET_ACTIONS )
         );
         
-        addBehaviour(new AchieveREResponder(this, template) {
-            
-            @Override
-            protected ACLMessage prepareResponse(ACLMessage request) {
-                log( "REQUEST received from " + request.getSender().getName() + ". Action is ( " + request.getContent() + " )" );
-                
-                log( "Sending AGREE" );
-                ACLMessage agree = request.createReply();
-                agree.setPerformative(ACLMessage.AGREE);
-                return agree;
-            }
-
-            @Override
-            protected ACLMessage prepareResultNotification( ACLMessage request, ACLMessage response ) {
-                ACLMessage reqResponse = requestActions( request );
-                waitForUpdate();
-                return reqResponse;
-            }
-        });
+        // Add behaviour to wait for REQUEST
+        addBehaviour( new CoordinatorResponseActionsBehaviour(this, template) );
     }
     
-    public ACLMessage requestActions( ACLMessage request ){
+    @Override
+    public void onActionsRequest(ACLMessage request) {
+        requestActions( request );
+    }
+    
+    private void requestActions( ACLMessage request ){
         log( "Actions requested" );
-        return onActionsReceived( request );
+        
+        ACLMessage message = new ACLMessage( ACLMessage.REQUEST );
+        message.setProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST );
+        message.setContent( MessageContent.GET_ACTIONS );
+        
+        for( AID nextAgent : getNextAgents() ){
+            message.addReceiver( nextAgent );
+        }
+        
+        // Add behaviour to handle REQUEST responses
+        addBehaviour( new CoordinatorRequestActionsBehaviour(this, message, request) );
     }
     
-    public ACLMessage onActionsReceived( ACLMessage request ){
+    @Override
+    public void onActionsReceived( ACLMessage request, String actions ){
+        
         log( "Sending INFORM (actions)" );
+        
         ACLMessage inform = request.createReply();
         inform.setPerformative( ACLMessage.INFORM );
-        return inform;
+        inform.setContent( actions );
+        send( inform );
+        
+        waitForUpdateRequest();
     }
     
-    public void waitForUpdate(){
-        MessageTemplate protocolAndPerformative = MessageTemplate.and(
-  		MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
-  		MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
-        );
-        
-        MessageTemplate noActions = MessageTemplate.not(
-                MessageTemplate.MatchContent( MessageContent.GET_ACTIONS )
-        );
+    private void waitForUpdateRequest(){
         
         MessageTemplate template = MessageTemplate.and(
-                protocolAndPerformative, noActions
+                MessageTemplate.and(
+                    MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
+                    MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
+                ),
+                MessageTemplate.not(
+                    MessageTemplate.MatchContent( MessageContent.GET_ACTIONS )
+                )
         );
         
-        addBehaviour(new AchieveREResponder(this, template) {
-            
-            @Override
-            protected ACLMessage prepareResponse(ACLMessage request) {
-                log( "REQUEST received from " + request.getSender().getName() + ". Action is ( Update agents )" );
-                
-                log( "Sending AGREE" );
-                ACLMessage agree = request.createReply();
-                agree.setPerformative(ACLMessage.AGREE);
-                return agree;
-            }
+        // Add behaviour to wait for REQUEST
+        addBehaviour( new CoordinatorResponseUpdatesBehaviour(this, template) );
+    }
 
-            @Override
-            protected ACLMessage prepareResultNotification( ACLMessage request, ACLMessage response ) {
-                ACLMessage reqResponse = requestUpdate( request );
-                waitForActions();
-                return reqResponse;
-            }
-        });
+    @Override
+    public void onUpdateRequest( ACLMessage request ) {
+        requestUpdate( request );
     }
     
-    public ACLMessage requestUpdate( ACLMessage request ){
+    private void requestUpdate( ACLMessage request ){
         log( "Update requested" );
-        return onUpdateConfirmed( request );
+        
+        ACLMessage message = new ACLMessage( ACLMessage.REQUEST );
+        message.setProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST );
+        message.setContent( request.getContent() );
+        
+        for( AID nextAgent : getNextAgents() ){
+            message.addReceiver( nextAgent );
+        }
+        
+        // Add behaviour to handle REQUEST responses
+        addBehaviour( new CoordinatorRequestUpdatesBehaviour( this, message, request ) );
     }
     
-    public ACLMessage onUpdateConfirmed( ACLMessage request ){
+    @Override
+    public void onUpdateConfirmed( ACLMessage request ){
         log( "Sending INFORM (updates)" );
         ACLMessage inform = request.createReply();
         inform.setPerformative( ACLMessage.INFORM );
-        return inform;
+        send( inform );
+        
+        waitForActionRequest();
     }
 }

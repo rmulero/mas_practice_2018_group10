@@ -17,6 +17,8 @@
  */
 package cat.urv.imas.agent;
 
+import cat.urv.imas.behaviour.system.SystemRequestActionsBehaviour;
+import cat.urv.imas.behaviour.system.SystemRequestUpdatesBehaviour;
 import cat.urv.imas.ontology.InitialGameSettings;
 import cat.urv.imas.ontology.GameSettings;
 import cat.urv.imas.gui.GraphicInterface;
@@ -25,8 +27,6 @@ import cat.urv.imas.ontology.MessageContent;
 import jade.core.*;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
-import jade.proto.AchieveREInitiator;
-import java.io.IOException;
 import java.util.List;
 
 
@@ -178,9 +178,9 @@ public class SystemAgent extends ImasAgentTuned {
     private int currentStep = 1;
     
     /*******  Communications  ********/
-    public void requestActions(){
+    private void requestActions(){
         
-        log("Requesting actions for step " + currentStep);
+        log( "Requesting actions for step " + currentStep );
         
         ACLMessage message = new ACLMessage( ACLMessage.REQUEST );
         message.setProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST );
@@ -191,81 +191,39 @@ public class SystemAgent extends ImasAgentTuned {
         }
         
         // Add behaviour to handle REQUEST responses
-        addBehaviour(new AchieveREInitiator( this, message ) {
-            
-            @Override
-            protected void handleAgree( ACLMessage agree ) {
-                log( "AGREE received from " + ((AID) agree.getSender()).getLocalName() );
-            }
-            
-            @Override
-            protected void handleRefuse( ACLMessage refuse ) {
-                log( "REFUSE received from " + ((AID) refuse.getSender()).getLocalName() );
-            }
-            
-            @Override
-            protected void handleInform( ACLMessage inform ) {
-                log( "INFORM received from " + ((AID) inform.getSender()).getLocalName() );
-                onActionsReceived();
-            }
-            
-            @Override
-            protected void handleFailure( ACLMessage failure ) {
-                log( "FAILURE received from " + ((AID) failure.getSender()).getLocalName() );
-            }
-        });
+        addBehaviour(new SystemRequestActionsBehaviour(this, message) );
     }
     
-    public void onActionsReceived(){
+    @Override
+    public void onActionsReceived( String actions ){
         log( "Actions received" );
-        requestUpdate();
+        
+        String updates = checkActions( actions );
+        requestUpdate( updates );
     }
     
-    public void requestUpdate(){
+    private String checkActions( String actions ){
+        return actions;
+    }
+    
+    private void requestUpdate( String updates ){
         log("Requesting updates for step " + currentStep);
         
         ACLMessage message = new ACLMessage( ACLMessage.REQUEST );
         message.setProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST );
+        message.setContent( updates );
         
-        try {
-            message.setContentObject( game );
-            
-            for( AID nextAgent : getNextAgents() ){
-                message.addReceiver( nextAgent );
-            }
-
-            // Add behaviour to handle REQUEST responses
-            addBehaviour(new AchieveREInitiator( this, message ) {
-
-                @Override
-                protected void handleAgree( ACLMessage agree ) {
-                    log( "AGREE received from " + ((AID) agree.getSender()).getLocalName() );
-                }
-
-                @Override
-                protected void handleRefuse( ACLMessage refuse ) {
-                    log( "REFUSE received from " + ((AID) refuse.getSender()).getLocalName() );
-                }
-
-                @Override
-                protected void handleInform( ACLMessage inform ) {
-                    log( "INFORM received from " + ((AID) inform.getSender()).getLocalName() );
-                    onUpdateConfirmed();
-                }
-
-                @Override
-                protected void handleFailure( ACLMessage failure ) {
-                    log( "FAILURE received from " + ((AID) failure.getSender()).getLocalName() );
-                }
-            });
-            
-        } catch (IOException ex) {
-            log( "Unable to perform update. Content cannot be set into the message." );
+        for( AID nextAgent : getNextAgents() ){
+            message.addReceiver( nextAgent );
         }
+        
+        // Add behaviour to handle REQUEST responses
+        addBehaviour(new SystemRequestUpdatesBehaviour(this, message) );
     }
     
+    @Override
     public void onUpdateConfirmed(){
-        log("Updates confirmed");
+        log( "Updates confirmed" );
         
         currentStep++;
         
