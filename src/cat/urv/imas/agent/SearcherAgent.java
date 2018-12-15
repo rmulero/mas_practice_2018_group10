@@ -1,9 +1,15 @@
 package cat.urv.imas.agent;
 
+import cat.urv.imas.behaviour.coordinator.CoordinatorResponseActionsBehaviour;
+import cat.urv.imas.behaviour.coordinator.CoordinatorResponseUpdatesBehaviour;
 import cat.urv.imas.map.Cell;
 import cat.urv.imas.map.CellType;
 import cat.urv.imas.ontology.GameSettings;
+import cat.urv.imas.ontology.MessageContent;
 import jade.core.AID;
+import jade.domain.FIPANames;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,8 +42,8 @@ public class SearcherAgent extends ImasAgentTuned {
         AID searcherCoordinator = searchAgent( AgentType.ESEARCHER_COORDINATOR.toString() );
         addPreviousAgent( searcherCoordinator );
         
-        // Add behaviour
-        //addBehaviour( new SetupBehaviour(this) );
+        // Wait first request
+        waitForActionRequest();
     }
 
     @Override
@@ -63,5 +69,46 @@ public class SearcherAgent extends ImasAgentTuned {
         
         log( "Position [" + position.getRow() + "," + position.getCol() + "]");
         log( "Autonomy (" + maxSteps + ")" );
+    }
+    
+    /*******  Communications  ********/
+    private void waitForActionRequest(){
+        
+        MessageTemplate template = MessageTemplate.and(
+                MessageTemplate.and(
+                    MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
+                    MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
+                ), 
+                MessageTemplate.MatchContent( MessageContent.GET_ACTIONS )
+        );
+        
+        // Add behaviour to wait for REQUEST
+        addBehaviour( new CoordinatorResponseActionsBehaviour(this, template) );
+    }
+    
+    @Override
+    public void onActionsRequest( ACLMessage request ) {
+        
+    }
+    
+    private void waitForUpdateRequest(){
+        
+        MessageTemplate template = MessageTemplate.and(
+                MessageTemplate.and(
+                    MessageTemplate.MatchProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST ),
+                    MessageTemplate.MatchPerformative( ACLMessage.REQUEST )
+                ),
+                MessageTemplate.not(
+                    MessageTemplate.MatchContent( MessageContent.GET_ACTIONS )
+                )
+        );
+        
+        // Add behaviour to wait for REQUEST
+        addBehaviour( new CoordinatorResponseUpdatesBehaviour(this, template) );
+    }
+    
+    @Override
+    public void onUpdateRequest( ACLMessage request ) {
+        
     }
 }

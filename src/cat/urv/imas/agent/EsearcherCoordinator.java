@@ -1,5 +1,7 @@
 package cat.urv.imas.agent;
 
+import cat.urv.imas.behaviour.coordinator.CoordinatorRequestActionsBehaviour;
+import cat.urv.imas.behaviour.coordinator.CoordinatorRequestUpdatesBehaviour;
 import cat.urv.imas.behaviour.coordinator.CoordinatorResponseActionsBehaviour;
 import cat.urv.imas.behaviour.coordinator.CoordinatorResponseUpdatesBehaviour;
 import cat.urv.imas.map.Cell;
@@ -73,7 +75,22 @@ public class EsearcherCoordinator extends ImasAgentTuned {
     
     @Override
     public void onActionsRequest( ACLMessage request ) {
-        // TODO: define what to do when the actions request is received
+        requestActions( request );
+    }
+    
+    private void requestActions( ACLMessage request ){
+        log( "Actions requested" );
+        
+        ACLMessage message = new ACLMessage( ACLMessage.REQUEST );
+        message.setProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST );
+        message.setContent( MessageContent.GET_ACTIONS );
+        
+        for( AID nextAgent : getNextAgents() ){
+            message.addReceiver( nextAgent );
+        }
+        
+        // Add behaviour to handle REQUEST responses
+        addBehaviour( new CoordinatorRequestActionsBehaviour(this, message, request) );
     }
     
     @Override
@@ -107,7 +124,22 @@ public class EsearcherCoordinator extends ImasAgentTuned {
     
     @Override
     public void onUpdateRequest( ACLMessage request ) {
-        // TODO: define what to do when the update request is received
+        requestUpdate( request );
+    }
+    
+    private void requestUpdate( ACLMessage request ){
+        log( "Update requested" );
+        
+        ACLMessage message = new ACLMessage( ACLMessage.REQUEST );
+        message.setProtocol( FIPANames.InteractionProtocol.FIPA_REQUEST );
+        message.setContent( request.getContent() );
+        
+        for( AID nextAgent : getNextAgents() ){
+            message.addReceiver( nextAgent );
+        }
+        
+        // Add behaviour to handle REQUEST responses
+        addBehaviour( new CoordinatorRequestUpdatesBehaviour( this, message, request ) );
     }
     
     @Override
