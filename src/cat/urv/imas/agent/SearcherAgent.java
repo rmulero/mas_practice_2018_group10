@@ -104,9 +104,48 @@ public class SearcherAgent extends ImasAgentTuned {
         this.currentRow = agentCell.getRow();
         this.currentCol = agentCell.getCol();
         
+        // Choose the initial direction
+        chooseInitialDirection();
+        
         // Log agent info
         log( "Position [" + currentRow + "," + currentCol + "]");
         log("Autonomy (" + maxAutonomy + ")" );
+    }
+    
+    private void chooseInitialDirection(){
+        // Get surrounding cells
+        Cell[] cells = {
+            getGameSettings().get( currentRow - 1, currentCol ),
+            getGameSettings().get( currentRow + 1, currentCol ),
+            getGameSettings().get( currentRow, currentCol - 1 ),
+            getGameSettings().get( currentRow, currentCol + 1 )
+        };
+        
+        // Get the surrounding path cells
+        List<Cell> pathCells = new ArrayList<>();
+        for ( Cell cell : cells ){
+            if ( cell.getCellType() == CellType.PATH ){
+                pathCells.add( cell );
+            }
+        }
+        
+        // Choose one of the paths randomly
+        Random rand = new Random();
+        int index = rand.nextInt( pathCells.size() );
+        Cell chosen = pathCells.get( index );
+        
+        if ( chosen.getRow() > currentRow ){
+            this.currentDirection = Direction.DOWN;
+            
+        } else if ( chosen.getRow() < currentRow ) {
+            this.currentDirection = Direction.UP;
+            
+        } else if ( chosen.getCol() > currentCol ) {
+            this.currentDirection = Direction.RIGHT;
+            
+        } else if ( chosen.getCol() < currentCol ) {
+            this.currentDirection = Direction.LEFT;
+        }
     }
     
     /////////////////////////////////////
