@@ -151,6 +151,31 @@ public class SearcherAgent extends ImasAgentTuned {
     
     @Override
     public void onUpdateRequest( ACLMessage request ) {
+        
+        String content = request.getContent();
+        
+        String[] updates = content.split( ActionUtils.ACTION_DELIMITER );
+        for ( String update : updates ){
+            if ( update.startsWith( getLocalName() )){
+                
+                String[] updateParts = update.split( ActionUtils.ACTION_PART_DELIMITER );
+                if ( updateParts[ 1 ].equalsIgnoreCase( ActionUtils.MOVE_ACTION )){
+                    String destination = updateParts[ 3 ];
+                    String[] coords = destination.split( "," );
+                    int nextRow = Integer.valueOf( coords[ 0 ] );
+                    int nextCol = Integer.valueOf( coords[ 1 ] );
+                    
+                    currentRow = nextRow;
+                    currentCol = nextCol;
+                    --currentAutonomy;
+                    
+                    if ( currentAutonomy == 0 ){
+                        currentState = State.STOPPED;
+                    }
+                }
+            }
+        }
+        
         waitForActionRequest();
     }
     
@@ -174,6 +199,7 @@ public class SearcherAgent extends ImasAgentTuned {
                 break;
             case STOPPED:
             default:
+                break;
         }
         
     }
