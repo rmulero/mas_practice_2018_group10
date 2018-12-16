@@ -30,22 +30,22 @@ public class CoordinatorRequestActionsBehaviour extends AchieveREInitiator {
     
     @Override
     protected void handleAgree( ACLMessage agree ) {
-        imasAgent.log( "AGREE received from " + ((AID) agree.getSender()).getLocalName() );
+        imasAgent.log( "Actions AGREE received from " + ((AID) agree.getSender()).getLocalName() );
     }
 
     @Override
     protected void handleRefuse( ACLMessage refuse ) {
-        imasAgent.log( "REFUSE received from " + ((AID) refuse.getSender()).getLocalName() );
+        imasAgent.log( "Actions REFUSE received from " + ((AID) refuse.getSender()).getLocalName() );
     }
 
     @Override
     protected void handleInform( ACLMessage inform ) {
-        imasAgent.log( "INFORM received from " + ((AID) inform.getSender()).getLocalName() );
+        imasAgent.log( "Actions INFORM received from " + ((AID) inform.getSender()).getLocalName() );
     }
 
     @Override
     protected void handleFailure( ACLMessage failure ) {
-        imasAgent.log( "FAILURE received from " + ((AID) failure.getSender()).getLocalName() );
+        imasAgent.log( "Actions FAILURE received from " + ((AID) failure.getSender()).getLocalName() );
     }
     
     @Override

@@ -27,11 +27,11 @@ public class CoordinatorResponseUpdatesBehaviour extends AchieveREResponder {
 
     @Override
     protected ACLMessage handleRequest(ACLMessage request) throws NotUnderstoodException, RefuseException {
-        imasAgent.log( "REQUEST received from " + request.getSender().getName() );
+        imasAgent.log( "Update REQUEST received from " + request.getSender().getName() );
 
         imasAgent.onUpdateRequest( request );
 
-        imasAgent.log( "Sending AGREE" );
+        imasAgent.log( "Sending AGREE (update)" );
         ACLMessage agree = request.createReply();
         agree.setPerformative(ACLMessage.AGREE);
         return agree;

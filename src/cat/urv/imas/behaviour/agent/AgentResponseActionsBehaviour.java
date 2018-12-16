@@ -3,9 +3,10 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package cat.urv.imas.behaviour.coordinator;
+package cat.urv.imas.behaviour.agent;
 
 import cat.urv.imas.agent.ImasAgentTuned;
+import jade.domain.FIPAAgentManagement.FailureException;
 import jade.domain.FIPAAgentManagement.NotUnderstoodException;
 import jade.domain.FIPAAgentManagement.RefuseException;
 import jade.lang.acl.ACLMessage;
@@ -16,24 +17,35 @@ import jade.proto.AchieveREResponder;
  *
  * @author Rafael Mulero
  */
-public class CoordinatorResponseActionsBehaviour extends AchieveREResponder {
+public class AgentResponseActionsBehaviour extends AchieveREResponder {
     
     private final ImasAgentTuned imasAgent;
     
-    public CoordinatorResponseActionsBehaviour( ImasAgentTuned a, MessageTemplate template){
+    public AgentResponseActionsBehaviour( ImasAgentTuned a, MessageTemplate template){
         super(a, template);
         this.imasAgent = a;
     }
 
     @Override
     protected ACLMessage handleRequest(ACLMessage request) throws NotUnderstoodException, RefuseException {
-        imasAgent.log( "REQUEST received from " + request.getSender().getName() + ". Action is ( Update agents )" );
+        imasAgent.log( "Actions REQUEST received from " + request.getSender().getName() );
 
-        imasAgent.onActionsRequest( request );
-
-        imasAgent.log( "Sending AGREE" );
+        imasAgent.log( "Sending AGREE (actions)" );
         ACLMessage agree = request.createReply();
         agree.setPerformative(ACLMessage.AGREE);
         return agree;
+    }
+
+    @Override
+    protected ACLMessage prepareResultNotification(ACLMessage request, ACLMessage response) throws FailureException {
+        imasAgent.onActionsRequest( request );
+        
+        String content = request.getContent();
+        
+        imasAgent.log( "Sending INFORM (actions)" );
+        ACLMessage inform = request.createReply();
+        inform.setPerformative( ACLMessage.INFORM );
+        inform.setContent( content );
+        return inform;
     }
 }
