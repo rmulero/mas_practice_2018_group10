@@ -9,6 +9,7 @@ import cat.urv.imas.ontology.GameSettings;
 import cat.urv.imas.ontology.MessageContent;
 import cat.urv.imas.ontology.WasteType;
 import cat.urv.imas.utils.AStarNode;
+import cat.urv.imas.utils.ActionUtils;
 import jade.core.AID;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
@@ -229,12 +230,12 @@ public class SearcherAgent extends ImasAgentTuned {
                 // Build action string
                 String[] actionParts = {
                     getLocalName(),
-                    "detect",
+                    ActionUtils.DETECT_ACTION,
                     positionStr,
                     wasteType.getShortString(),
                     String.valueOf( wasteAmount )
                 };
-                actions.add( String.join(":", actionParts) );
+                actions.add( String.join(ActionUtils.ACTION_PART_DELIMITER, actionParts) );
             }
         }
     }
@@ -302,13 +303,13 @@ public class SearcherAgent extends ImasAgentTuned {
             
             String[] actionParts = {
                 getLocalName(),
-                "move",
+                ActionUtils.MOVE_ACTION,
                 originStr,
                 destinationStr,
                 String.valueOf( currentAutonomy )
             };
             
-            actions.add( String.join( ":", actionParts) );
+            actions.add( String.join( ActionUtils.ACTION_PART_DELIMITER, actionParts) );
             
         } else {
             changeDirection();
@@ -380,14 +381,14 @@ public class SearcherAgent extends ImasAgentTuned {
 
             String[] actionParts = {
                 getLocalName(),
-                "move",
+                ActionUtils.MOVE_ACTION,
                 originStr,
                 destinationStr,
                 String.valueOf( currentAutonomy ),
-                "need_charge"
+                ActionUtils.NEED_CHARGE_FLAG
             };
 
-            actions.add( String.join(":", actionParts) );
+            actions.add( String.join( ActionUtils.ACTION_PART_DELIMITER, actionParts) );
         }
     }
     
