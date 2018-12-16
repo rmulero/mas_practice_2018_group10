@@ -20,6 +20,7 @@ package cat.urv.imas.ontology;
 import cat.urv.imas.agent.AgentType;
 import cat.urv.imas.map.Cell;
 import cat.urv.imas.map.CellType;
+import cat.urv.imas.map.FieldCell;
 import java.util.List;
 import java.util.Map;
 import javax.xml.bind.annotation.XmlElement;
@@ -191,7 +192,33 @@ public class GameSettings implements java.io.Serializable {
         //TODO: find all surrounding cells to (row,col) that are
         //      buildings and have garbage on it.
         //      Use: FieldCell.detectMetal() to do so.  FieldCell.detectWaste()
-        return null;
+        
+        Cell[] cells = {
+            map[ row - 1 ][ col ], // top
+            map[ row ][ col + 1 ], // right
+            map[ row + 1 ][ col ], // bottom
+            map[ row ][ col - 1 ], // left
+            map[ row - 1 ][ col + 1 ], // top-right
+            map[ row - 1 ][ col - 1 ], // top-left
+            map[ row + 1 ][ col + 1 ], // bottom-right
+            map[ row + 1 ][ col - 1 ] // bottom-left
+        };
+        
+        for ( int i = 0; i < cells.length; ++i ){
+            Cell cell = cells[ i ];
+            
+            if ( cell.getCellType() == CellType.FIELD ){
+                FieldCell fc = (FieldCell) cell;
+                
+                if ( fc.detectWaste().isEmpty() ){
+                    cells[ i ] = null;
+                }
+            } else {
+                cells[ i ] = null;
+            }
+        }
+        
+        return cells;
     }
 
     /**
