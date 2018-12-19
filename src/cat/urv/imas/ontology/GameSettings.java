@@ -123,7 +123,7 @@ public class GameSettings implements java.io.Serializable {
     /**
      * number of steps that can go a e-searcher without charging its batteries 
      */
-    protected int eSearcherMaxSteps = 20;
+    protected int eSearcherMaxSteps = 100;
 
     public int geteSearcherMaxSteps() {
         return eSearcherMaxSteps;
@@ -131,7 +131,7 @@ public class GameSettings implements java.io.Serializable {
 
     @XmlElement(required=true)    
     public void seteSearcherMaxSteps(int eSearcherMaxSteps) {
-        this.eSearcherMaxSteps = eSearcherMaxSteps;
+        //this.eSearcherMaxSteps = eSearcherMaxSteps;
     }
     
     /**
