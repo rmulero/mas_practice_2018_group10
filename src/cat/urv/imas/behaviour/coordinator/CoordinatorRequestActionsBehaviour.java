@@ -6,6 +6,7 @@
 package cat.urv.imas.behaviour.coordinator;
 
 import cat.urv.imas.agent.ImasAgentTuned;
+import cat.urv.imas.utils.ActionUtils;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import jade.proto.AchieveREInitiator;
@@ -57,7 +58,7 @@ public class CoordinatorRequestActionsBehaviour extends AchieveREInitiator {
             actions.add( content );
         }
         
-        String actionsStr = String.join( ",", actions );
+        String actionsStr = String.join( ActionUtils.DELIMITER_ACTION, actions );
         imasAgent.onActionsReceived( request, actionsStr );
     }
 }
