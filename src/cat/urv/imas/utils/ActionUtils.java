@@ -11,10 +11,12 @@ package cat.urv.imas.utils;
  */
 public class ActionUtils {
     
-    public static final String MOVE_ACTION = "move";
-    public static final String DETECT_ACTION = "detect";
-    public static final String NEED_CHARGE_FLAG = "need_charge";
+    public static final String ACTION_MOVE = "move";
+    public static final String ACTION_DETECT = "detect";
+    public static final String ACTION_CHANGE_DIRECTION = "change_direction";
     
-    public static final String ACTION_PART_DELIMITER = ":";
-    public static final String ACTION_DELIMITER = ";";
+    public static final String FLAG_NEED_CHARGE = "need_charge";
+    
+    public static final String DELIMITER_PART = ":";
+    public static final String DELIMITER_ACTION = ";";
 }
