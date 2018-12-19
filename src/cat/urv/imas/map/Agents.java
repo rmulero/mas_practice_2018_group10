@@ -93,7 +93,7 @@ public class Agents implements java.io.Serializable {
 
     public String getMapMessage() {
         StringBuilder string = new StringBuilder("|");
-        for (AgentType type : AgentType.values()) {
+        for (AgentType type : agents.keySet()) {
             string.append(type.getShortString()).append(":").append(agents.get(type).size()).append("|");
         }
         string.append("|");
