@@ -5,7 +5,9 @@ import cat.urv.imas.behaviour.agent.AgentResponseUpdatesBehaviour;
 import cat.urv.imas.map.Cell;
 import cat.urv.imas.map.CellType;
 import cat.urv.imas.map.FieldCell;
+import cat.urv.imas.map.PathCell;
 import cat.urv.imas.ontology.GameSettings;
+import cat.urv.imas.ontology.InfoAgent;
 import cat.urv.imas.ontology.MessageContent;
 import cat.urv.imas.ontology.WasteType;
 import cat.urv.imas.utils.AStarNode;
@@ -81,7 +83,7 @@ public class SearcherAgent extends ImasAgentTuned {
     }
     
     @Override
-    public void setupSettings(GameSettings gameSettings) {
+    public void setupSettings( GameSettings gameSettings ) {
         
         // Set the game settings
         setGameSettings( gameSettings );
@@ -103,6 +105,10 @@ public class SearcherAgent extends ImasAgentTuned {
         Cell agentCell = agents.get( index );
         this.currentRow = agentCell.getRow();
         this.currentCol = agentCell.getCol();
+        
+        PathCell pc = (PathCell) agentCell;
+        InfoAgent a = pc.getAgents().get( type ).get( 0 );
+        a.setAID( this.getAID() );
         
         // Choose the initial direction
         chooseInitialDirection();
@@ -193,12 +199,12 @@ public class SearcherAgent extends ImasAgentTuned {
         
         String content = request.getContent();
         
-        String[] updates = content.split( ActionUtils.ACTION_DELIMITER );
+        String[] updates = content.split(ActionUtils.DELIMITER_ACTION );
         for ( String update : updates ){
             if ( update.startsWith( getLocalName() )){
                 
-                String[] updateParts = update.split( ActionUtils.ACTION_PART_DELIMITER );
-                if ( updateParts[ 1 ].equalsIgnoreCase( ActionUtils.MOVE_ACTION )){
+                String[] updateParts = update.split( ActionUtils.DELIMITER_PART );
+                if ( updateParts[ 1 ].equalsIgnoreCase( ActionUtils.ACTION_MOVE )){
                     String destination = updateParts[ 3 ];
                     String[] coords = destination.split( "," );
                     int nextRow = Integer.valueOf( coords[ 0 ] );
@@ -295,12 +301,12 @@ public class SearcherAgent extends ImasAgentTuned {
                 // Build action string
                 String[] actionParts = {
                     getLocalName(),
-                    ActionUtils.DETECT_ACTION,
+                    ActionUtils.ACTION_DETECT,
                     positionStr,
                     wasteType.getShortString(),
                     String.valueOf( wasteAmount )
                 };
-                actions.add( String.join(ActionUtils.ACTION_PART_DELIMITER, actionParts) );
+                actions.add( String.join(ActionUtils.DELIMITER_PART, actionParts) );
             }
         }
     }
@@ -368,13 +374,13 @@ public class SearcherAgent extends ImasAgentTuned {
             
             String[] actionParts = {
                 getLocalName(),
-                ActionUtils.MOVE_ACTION,
+                ActionUtils.ACTION_MOVE,
                 originStr,
                 destinationStr,
                 String.valueOf( currentAutonomy )
             };
             
-            actions.add( String.join( ActionUtils.ACTION_PART_DELIMITER, actionParts) );
+            actions.add( String.join(ActionUtils.DELIMITER_PART, actionParts) );
             
         } else {
             changeDirection();
@@ -431,12 +437,13 @@ public class SearcherAgent extends ImasAgentTuned {
      */
     private void followPath(){
         
-        AStarNode node = chargingPointPath.get( 0 );
+        
         if ( chargingPointPath.size() == 1 ){
             currentState = State.CHARGING;
             chargingStep = 3;
             
         } else if ( chargingPointPath.size() > 1 ){
+            AStarNode node = chargingPointPath.get( 0 );
             if ( node.getRow() == currentRow && node.getCol() == currentCol ){
                 node = chargingPointPath.get( 1 );
             }
@@ -446,14 +453,14 @@ public class SearcherAgent extends ImasAgentTuned {
 
             String[] actionParts = {
                 getLocalName(),
-                ActionUtils.MOVE_ACTION,
+                ActionUtils.ACTION_MOVE,
                 originStr,
                 destinationStr,
                 String.valueOf( currentAutonomy ),
-                ActionUtils.NEED_CHARGE_FLAG
+                ActionUtils.FLAG_NEED_CHARGE
             };
 
-            actions.add( String.join( ActionUtils.ACTION_PART_DELIMITER, actionParts) );
+            actions.add( String.join(ActionUtils.DELIMITER_PART, actionParts) );
         }
     }
     
