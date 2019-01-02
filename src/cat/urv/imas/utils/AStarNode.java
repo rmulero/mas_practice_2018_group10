@@ -67,11 +67,16 @@ public class AStarNode implements Comparable<AStarNode>{
 
     @Override
     public boolean equals(Object obj) {
-        AStarNode o = (AStarNode) obj;
         
-        boolean sameRow = this.getRow() == o.getRow();
-        boolean sameCol = this.getCol() == o.getCol();
+        if ( obj != null ){
+            AStarNode o = (AStarNode) obj;
         
-        return sameRow && sameCol;
+            boolean sameRow = this.getRow() == o.getRow();
+            boolean sameCol = this.getCol() == o.getCol();
+
+            return sameRow && sameCol;
+        }
+        
+        return false;
     }
 }
