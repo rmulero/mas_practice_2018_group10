@@ -12,6 +12,9 @@ import cat.urv.imas.ontology.MessageContent;
 import cat.urv.imas.ontology.WasteType;
 import cat.urv.imas.utils.AStarNode;
 import cat.urv.imas.utils.ActionUtils;
+import cat.urv.imas.utils.AstarPathFinderAlgorithm;
+import cat.urv.imas.utils.actions.DetectAction;
+import cat.urv.imas.utils.actions.MoveAction;
 import jade.core.AID;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
@@ -32,6 +35,7 @@ public class SearcherAgent extends ImasAgentTuned {
     private int currentCol = 0;
     private int chargingStep = 0;
     
+    private AstarPathFinderAlgorithm pathFinder;
     private final List<Cell> chargingPoints;
     private final List<String> actions;
     private final List<AStarNode> chargingPointPath;
@@ -114,8 +118,11 @@ public class SearcherAgent extends ImasAgentTuned {
         chooseInitialDirection();
         
         // Log agent info
-        log( "Position [" + currentRow + "," + currentCol + "]");
-        log("Autonomy (" + maxAutonomy + ")" );
+        log( "Position [" + currentRow + "," + currentCol + "]" );
+        log( "Autonomy (" + maxAutonomy + ")" );
+        
+        // Set the pathfinder algorithm
+        this.pathFinder = new AstarPathFinderAlgorithm( gameSettings );
     }
     
     private void chooseInitialDirection(){
@@ -174,7 +181,7 @@ public class SearcherAgent extends ImasAgentTuned {
     @Override
     public void onActionsRequest( ACLMessage request ) {
         performActions();
-        request.setContent( String.join( ";", actions) );
+        request.setContent( String.join( ActionUtils.DELIMITER_ACTION, actions ) );
         waitForUpdateRequest();
     }
 
@@ -199,20 +206,30 @@ public class SearcherAgent extends ImasAgentTuned {
         
         String content = request.getContent();
         
-        String[] updates = content.split(ActionUtils.DELIMITER_ACTION );
+        String[] updates = content.split( ActionUtils.DELIMITER_ACTION );
         for ( String update : updates ){
             if ( update.startsWith( getLocalName() )){
                 
                 String[] updateParts = update.split( ActionUtils.DELIMITER_PART );
                 if ( updateParts[ 1 ].equalsIgnoreCase( ActionUtils.ACTION_MOVE )){
-                    String destination = updateParts[ 3 ];
-                    String[] coords = destination.split( "," );
-                    int nextRow = Integer.valueOf( coords[ 0 ] );
-                    int nextCol = Integer.valueOf( coords[ 1 ] );
+                    MoveAction moveAction = MoveAction.fromString( update );
+                    int nextRow = moveAction.getDestinationRow();
+                    int nextCol = moveAction.getDestinationCol();
                     
                     currentRow = nextRow;
                     currentCol = nextCol;
                     --currentAutonomy;
+                    
+                    if ( currentState == State.NEED_CHARGE ){
+                        
+                        AStarNode node = chargingPointPath.get( 1 );
+                        boolean updatedPath = ( node.getRow() == currentRow && 
+                                node.getCol() == currentCol );
+                        
+                        if ( updatedPath ){
+                            chargingPointPath.remove( 0 );
+                        }
+                    }
                     
                     if ( currentAutonomy == 0 ){
                         currentState = State.STOPPED;
@@ -299,14 +316,15 @@ public class SearcherAgent extends ImasAgentTuned {
                 int wasteAmount = waste.get( wasteType );
                 
                 // Build action string
-                String[] actionParts = {
-                    getLocalName(),
-                    ActionUtils.ACTION_DETECT,
-                    positionStr,
-                    wasteType.getShortString(),
-                    String.valueOf( wasteAmount )
-                };
-                actions.add( String.join(ActionUtils.DELIMITER_PART, actionParts) );
+                DetectAction detectAction = new DetectAction(
+                        getLocalName(),
+                        ActionUtils.ACTION_DETECT,
+                        positionStr, 
+                        wasteType.getShortString(), 
+                        String.valueOf( wasteAmount )
+                );
+                
+                actions.add( detectAction.toString() );
             }
         }
     }
@@ -372,15 +390,16 @@ public class SearcherAgent extends ImasAgentTuned {
             String originStr = currentRow + "," + currentCol;
             String destinationStr = next.getRow() + "," + next.getCol();
             
-            String[] actionParts = {
-                getLocalName(),
-                ActionUtils.ACTION_MOVE,
-                originStr,
-                destinationStr,
-                String.valueOf( currentAutonomy )
-            };
+            // Build action string
+            MoveAction action = new MoveAction(
+                    getLocalName(), 
+                    ActionUtils.ACTION_MOVE, 
+                    originStr, 
+                    destinationStr, 
+                    String.valueOf( currentAutonomy )
+            );
             
-            actions.add( String.join(ActionUtils.DELIMITER_PART, actionParts) );
+            actions.add( action.toString() );
             
         } else {
             changeDirection();
@@ -437,7 +456,6 @@ public class SearcherAgent extends ImasAgentTuned {
      */
     private void followPath(){
         
-        
         if ( chargingPointPath.size() == 1 ){
             currentState = State.CHARGING;
             chargingStep = 3;
@@ -446,21 +464,43 @@ public class SearcherAgent extends ImasAgentTuned {
             AStarNode node = chargingPointPath.get( 0 );
             if ( node.getRow() == currentRow && node.getCol() == currentCol ){
                 node = chargingPointPath.get( 1 );
+                
+            } else if ( chargingPointPath.size() > 2 ){
+                pathFinder.setNodeToAvoid( chargingPointPath.get( 1 ) );
+                AStarNode currentOrigin = new AStarNode( currentRow, currentCol );
+                Set<AStarNode> destination = new HashSet<>();
+                destination.add( chargingPointPath.get( 2 ) );
+                List<AStarNode> deviation = pathFinder.findPath( currentOrigin, destination );
+                pathFinder.unsetNodeToAvoid();
+                
+                chargingPointPath.remove( 2 );
+                chargingPointPath.remove( 1 );
+                chargingPointPath.remove( 0 );
+                
+                deviation.addAll( chargingPointPath );
+                chargingPointPath.clear();
+                chargingPointPath.addAll( deviation );
+                node = chargingPointPath.get( 1 );
+                
+            } else {
+                node = null;
             }
             
-            String originStr = currentRow + "," + currentCol;
-            String destinationStr = node.getRow() + "," + node.getCol();
+            if ( node != null ){
+                String originStr = currentRow + "," + currentCol;
+                String destinationStr = node.getRow() + "," + node.getCol();
 
-            String[] actionParts = {
-                getLocalName(),
-                ActionUtils.ACTION_MOVE,
-                originStr,
-                destinationStr,
-                String.valueOf( currentAutonomy ),
-                ActionUtils.FLAG_NEED_CHARGE
-            };
+                MoveAction action = new MoveAction(
+                        getLocalName(), 
+                        ActionUtils.ACTION_MOVE, 
+                        originStr, 
+                        destinationStr, 
+                        String.valueOf( currentAutonomy ),
+                        ActionUtils.FLAG_NEED_CHARGE
+                );
 
-            actions.add( String.join(ActionUtils.DELIMITER_PART, actionParts) );
+                actions.add( action.toString() );
+            }
         }
     }
     
@@ -478,10 +518,10 @@ public class SearcherAgent extends ImasAgentTuned {
         
         for ( Cell chargingPoint : chargingPoints ){
             
-            Set<AStarNode> destinations = getSurroundingPathCells( chargingPoint );
+            Set<AStarNode> destinations = pathFinder.getSurroundingPathCells( chargingPoint );
             
-            List<AStarNode> path = aStarPathFinderAlgorithm( origin, destinations );
-            if ( pathSteps > path.size() ){
+            List<AStarNode> path = pathFinder.findPath( origin, destinations );
+            if ( pathSteps > path.size() && !path.isEmpty() ){
                 pathSteps = path.size();
                 bestPath.clear();
                 bestPath.addAll( path );
@@ -494,171 +534,4 @@ public class SearcherAgent extends ImasAgentTuned {
         }
     }
     
-    private Set<AStarNode> getSurroundingPathCells( Cell centerCell ){
-        
-        Set<AStarNode> nodes = new HashSet<>();
-        
-        int row = centerCell.getRow();
-        int col = centerCell.getCol();
-        
-        Cell[] cells = {
-            getGameSettings().get( row - 1, col ),  // top
-            getGameSettings().get( row, col + 1 ),  // right
-            getGameSettings().get( row + 1, col ),  // bottom
-            getGameSettings().get( row, col - 1 ),  // left
-            getGameSettings().get( row - 1, col + 1 ),  // top-right
-            getGameSettings().get( row - 1, col - 1 ),  // top-left
-            getGameSettings().get( row + 1, col + 1 ),  // bottom-right
-            getGameSettings().get( row + 1, col - 1 )   // bottom-left
-        };
-        
-        for ( Cell cell : cells ){
-            if ( cell.getCellType() == CellType.PATH ){
-                AStarNode node = new AStarNode( cell.getRow(), cell.getCol() );
-                nodes.add( node );
-            }
-        }
-        
-        return nodes;
-    }
-    
-    /**
-     * Perform the A* algorithm. The destinations are the PATH cells around
-     * the chosen charging point
-     * @param origin    Origin node
-     * @param destinations  Set of destination nodes
-     * @return  The shortest path between the origin and destination node
-     */
-    private List<AStarNode> aStarPathFinderAlgorithm( AStarNode origin, Set<AStarNode> destinations ){
-        
-        List<AStarNode> path = new ArrayList<>();
-        
-        List<AStarNode> openList = new ArrayList<>();
-        List<AStarNode> closedList = new ArrayList<>();
-
-        openList.add( origin );
-
-        while ( !openList.isEmpty() && path.isEmpty() ) {
-
-            AStarNode node = openList.remove( 0 );
-            closedList.add( node );
-
-            // Get adjacent points
-            List<AStarNode> adjacents = getAdjacentNodes( node );
-
-            // Check adjacent nodes
-            for ( AStarNode adjNode : adjacents ) {
-
-                int adjRow = adjNode.getRow();
-                int adjCol = adjNode.getCol();
-                Cell adjCell = getGameSettings().get( adjRow, adjCol );
-                boolean isPathCell = adjCell.getCellType() == CellType.PATH;
-                boolean isInClosedList = closedList.contains( adjNode );
-                boolean isInOpenList = openList.contains( adjNode );
-
-                // Destination found
-                if ( destinations.contains( adjNode ) ) {
-                    AStarNode current = adjNode;
-                    path.add( current );
-                    while ( current.getParent() != null ) {
-                        path.add( current.getParent() );
-                        current = current.getParent();
-                    }
-
-                    Collections.reverse( path );
-
-                // Check if is path cell and is not already checked
-                } else if ( isPathCell && !isInClosedList ) {
-
-                    int gValue = computeGvalue( node );
-
-                    if ( isInOpenList ) {
-
-                        // Check if new g is better than current g
-                        if ( adjNode.getgValue() > gValue ) {
-                            adjNode.setgValue( gValue );
-                            adjNode.setParent( node );
-                        }
-
-                    } else {
-                        // Set parent node and values
-                        int hValue = computeHvalue( adjNode, destinations );
-                        
-                        adjNode.setParent( node );
-                        adjNode.setgValue( gValue );
-                        adjNode.sethValue( hValue );
-
-                        // Add node to open list
-                        openList.add( adjNode );
-                    }
-                }
-            }
-            
-            // Sort open list
-            Collections.sort( openList );
-        }
-        
-        return path;
-    }
-    
-    /**
-     * Get the list of nodes that are adjacent to the given node. The nodes 
-     * considered as adjacents are the ones that can be reach from the node in 
-     * vertical or horizontal direction (not diagonals)
-     * @param node  Node being evaluated
-     * @return List of adjacent nodes
-     */
-    private List<AStarNode> getAdjacentNodes( AStarNode node ){
-        
-        int nodeRow = node.getRow();
-        int nodeCol = node.getCol();
-
-        List<AStarNode> adjacents = new ArrayList<>();
-        adjacents.add( new AStarNode(nodeRow - 1, nodeCol) );   // top
-        adjacents.add( new AStarNode(nodeRow + 1, nodeCol) );   // bottom
-        adjacents.add( new AStarNode(nodeRow, nodeCol - 1) );   // left
-        adjacents.add( new AStarNode(nodeRow, nodeCol + 1) );   // right
-        
-        return adjacents;
-    }
-    
-    /**
-     * Compute the G value from the node to the origin
-     * @param node  Node being evaluated
-     * @return The G value for the node
-     */
-    private int computeGvalue( AStarNode node ){
-        
-        int g = 1;
-        
-        AStarNode current = node;
-        while ( current.getParent() != null ) {
-            g += 1;
-            current = current.getParent();
-        }
-        
-        return g;
-    }
-    
-    /**
-     * Compute the H value from the node to the destinations.
-     * @param origin    Path node being evaluated
-     * @param destinations  Set of destinations to reach
-     * @return Smallest Manhattan distance from origin to destinations
-     */
-    private int computeHvalue( AStarNode origin, Set<AStarNode> destinations ){
-        
-        int minDist = Integer.MAX_VALUE;
-        
-        for ( AStarNode dest : destinations ){
-            int dist = Math.abs( origin.getRow() - dest.getRow() );
-            dist += Math.abs( origin.getCol() - dest.getCol() );
-            
-            if( minDist > dist ){
-                minDist = dist;
-            }
-        }
-        
-        return minDist;
-    }
 }
