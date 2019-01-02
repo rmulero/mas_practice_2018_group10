@@ -107,7 +107,9 @@ public class CoordinatorAgent extends ImasAgentTuned {
         setGameSettings( gameSettings );
     }
     
-    /*******  Communications  ********/
+    /////////////////////////////////////
+    //      COMMUNICATIONS
+    /////////////////////////////////////
     private void waitForActionRequest(){
         
         MessageTemplate template = MessageTemplate.and(

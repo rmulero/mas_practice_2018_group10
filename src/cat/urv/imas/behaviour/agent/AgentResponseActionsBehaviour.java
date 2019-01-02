@@ -21,13 +21,13 @@ public class AgentResponseActionsBehaviour extends AchieveREResponder {
     
     private final ImasAgentTuned imasAgent;
     
-    public AgentResponseActionsBehaviour( ImasAgentTuned a, MessageTemplate template){
-        super(a, template);
+    public AgentResponseActionsBehaviour( ImasAgentTuned a, MessageTemplate template ){
+        super( a, template );
         this.imasAgent = a;
     }
 
     @Override
-    protected ACLMessage handleRequest(ACLMessage request) throws NotUnderstoodException, RefuseException {
+    protected ACLMessage handleRequest( ACLMessage request ) throws NotUnderstoodException, RefuseException {
         imasAgent.log( "Actions REQUEST received from " + request.getSender().getName() );
 
         imasAgent.log( "Sending AGREE (actions)" );
@@ -37,7 +37,7 @@ public class AgentResponseActionsBehaviour extends AchieveREResponder {
     }
 
     @Override
-    protected ACLMessage prepareResultNotification(ACLMessage request, ACLMessage response) throws FailureException {
+    protected ACLMessage prepareResultNotification( ACLMessage request, ACLMessage response ) throws FailureException {
         imasAgent.onActionsRequest( request );
         
         String content = request.getContent();

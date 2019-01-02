@@ -58,7 +58,9 @@ public class EsearcherCoordinator extends ImasAgentTuned {
         log( "Number of searchers = " + getNextAgents().size() );
     }
     
-    /*******  Communications  ********/
+    /////////////////////////////////////
+    //      COMMUNICATIONS
+    /////////////////////////////////////
     private void waitForActionRequest(){
         
         MessageTemplate template = MessageTemplate.and(

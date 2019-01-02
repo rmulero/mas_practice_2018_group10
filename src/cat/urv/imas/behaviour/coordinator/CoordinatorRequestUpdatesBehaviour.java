@@ -39,7 +39,6 @@ public class CoordinatorRequestUpdatesBehaviour extends AchieveREInitiator {
     @Override
     protected void handleInform(ACLMessage inform) {
         imasAgent.log("Update INFORM received from " + ((AID) inform.getSender()).getLocalName());
-        imasAgent.onUpdateConfirmed();
     }
 
     @Override
@@ -49,6 +48,7 @@ public class CoordinatorRequestUpdatesBehaviour extends AchieveREInitiator {
     
     @Override
     protected void handleAllResultNotifications( Vector resultNotifications ) {
+        imasAgent.log( "Update RESULTS received" );
         imasAgent.onUpdateConfirmed( request );
     }
 
