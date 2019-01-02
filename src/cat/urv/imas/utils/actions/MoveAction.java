@@ -47,12 +47,13 @@ public class MoveAction extends ActionBase {
         String action = parts[ 1 ];
         String origin = parts[ 2 ];
         String destination = parts[ 3 ];
+        String autonomy = parts[ 4 ];
         String flag = "";
-        if ( parts.length == 5 ){
-            flag = parts[ 4 ];
+        if ( parts.length == 6 ){
+            flag = parts[ 5 ];
         }
         
-        return new MoveAction(agent, action, origin, destination, flag);
+        return new MoveAction(agent, action, origin, destination, autonomy, flag);
     }
     
     public int getOriginRow() {
