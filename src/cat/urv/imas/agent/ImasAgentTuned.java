@@ -15,6 +15,7 @@ import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
 /**
  *
@@ -121,6 +122,15 @@ public abstract class ImasAgentTuned extends ImasAgent {
         
     }
     public void onUpdateConfirmed( ACLMessage request ){
+        
+    }
+    public ACLMessage onCfpReceived( ACLMessage cfp ){
+        return null;
+    }
+    public void evaluateProposals( Vector responses, Vector acceptances ){
+        
+    }
+    public void onProposalAccepted( ACLMessage accept ){
         
     }
 }
