@@ -126,7 +126,7 @@ public class SystemAgent extends ImasAgentTuned {
         registerDF();
 
         // 2. Load game settings.
-        InitialGameSettings settings = InitialGameSettings.load( "game.settings" );
+        InitialGameSettings settings = InitialGameSettings.load( "game.evaluation.seconddate.settings" );
         this.game = settings;
         
         log( "Initial configuration settings loaded" );
@@ -237,10 +237,22 @@ public class SystemAgent extends ImasAgentTuned {
         currentStep++;
         
         if ( currentStep <= maxSteps ){
-            addElementsForThisSimulationStep();
+            try {
+                Thread.sleep( 500 );
+            } catch ( InterruptedException ex ) {
+                
+            }
+            
+            try {
+                addElementsForThisSimulationStep();
+            } catch ( Error er ) {
+                
+            }
+            
             updateGUI();
             
             requestActions();
+            
         } else {
             log( "SIMULATION FINISHED" );
         }
@@ -258,44 +270,39 @@ public class SystemAgent extends ImasAgentTuned {
         for ( String action : individualActions ){
             if ( !action.isEmpty() ){
                 String[] parts = action.split( ActionUtils.DELIMITER_PART );
-            
-                if ( parts.length < 3 ){
-                    System.out.print("");
-                }
                 String actionType = parts[ 1 ];
-
-                List<String> list = actionsByType.get( actionType );
-                if ( list == null ){
-                    list = new ArrayList<>();
-                    actionsByType.put( actionType, list );
+                
+                if ( !actionType.isEmpty() ){
+                    List<String> list = actionsByType.get( actionType );
+                    if ( list == null ){
+                        list = new ArrayList<>();
+                        actionsByType.put( actionType, list );
+                    }
+                    list.add( action );
                 }
-                list.add( action );
             }
         }
         
-        // Check moves
+        // Check actions
+        List<String> checkedActions = new ArrayList<>();
         for ( String type : actionsByType.keySet() ){
-            
             List<String> list = actionsByType.get( type );
             
             switch( type ){
                 case ActionUtils.ACTION_MOVE:
                     checkMoves( list );
+                    checkedActions.addAll( list );
                     break;
-                case ActionUtils.ACTION_DETECT:
                     
+                case ActionUtils.ACTION_DETECT:
+                case ActionUtils.ACTION_COLLECT:
+                case ActionUtils.ACTION_RECYCLE:
+                    checkedActions.addAll( list );
                     break;
             }
         }
         
-        // Get the updated actions
-        List<String> moves = actionsByType.get( ActionUtils.ACTION_MOVE );
-        String movesStr = "";
-        if ( moves != null ){
-             movesStr = String.join( ActionUtils.DELIMITER_ACTION, moves );
-        }
-        
-        return movesStr;
+        return String.join( ActionUtils.DELIMITER_ACTION, checkedActions );
     }
     
     private void checkMoves( List<String> actions ){
@@ -306,20 +313,20 @@ public class SystemAgent extends ImasAgentTuned {
             moveActions.add( MoveAction.fromString( action ) );
         }
         
-        boolean noConflict;
+        boolean isConflict;
         do{
             // Check if the moves are allowed
             checkMovesContraint( moveActions );
         
             // Check if the destinations are not empty
-            boolean check1 = checkEmptyDestination( moveActions );
+            boolean emptyDestConflict = isEmptyDestinationConflict( moveActions );
         
             // Check if the destinations are the same for two agents
-            boolean check2 = checkSameDestination( moveActions );
+            boolean sameDestConflict = isSameDestinationConflict( moveActions );
             
-            noConflict = check1 && check2;
+            isConflict = emptyDestConflict || sameDestConflict;
             
-        } while( noConflict );
+        } while( isConflict );
         
         // Update actions list
         actions.clear();
@@ -349,7 +356,7 @@ public class SystemAgent extends ImasAgentTuned {
         }
     }
     
-    private boolean checkEmptyDestination( List<MoveAction> actions ){
+    private boolean isEmptyDestinationConflict( List<MoveAction> actions ){
         
         boolean existConflict = false;
         
@@ -399,7 +406,7 @@ public class SystemAgent extends ImasAgentTuned {
         return existConflict;
     }
     
-    private boolean checkSameDestination( List<MoveAction> actions ){
+    private boolean isSameDestinationConflict( List<MoveAction> actions ){
         
         boolean existConflict = false;
         
@@ -431,16 +438,13 @@ public class SystemAgent extends ImasAgentTuned {
         boolean aFlagEmpty = actionA.getFlag().isEmpty();
         boolean bFlagEmpty = actionB.getFlag().isEmpty();
 
-        if ( aFlagEmpty && bFlagEmpty ){
-            deviate( actionA );
-
-        } else if ( aFlagEmpty && !bFlagEmpty ){
+        if ( aFlagEmpty && !bFlagEmpty ){
             deviate( actionA );
 
         } else if ( !aFlagEmpty && bFlagEmpty ){
             deviate( actionB );
 
-        } else if ( !aFlagEmpty && !bFlagEmpty ){
+        } else {
 
             if ( actionA.getAutonomy() > actionB.getAutonomy() ){
                 deviate( actionA );
@@ -519,50 +523,61 @@ public class SystemAgent extends ImasAgentTuned {
     
     private void updateMap( List<MoveAction> actions ){
         
-        for ( MoveAction action : actions ){
+        Map<AgentType, List<Cell>> agentList = getGameSettings().getAgentList();
+        
+        List<MoveAction> pendingActions = new ArrayList<>( actions );
+        while( !pendingActions.isEmpty() ){
             
-            int oRow = action.getOriginRow();
-            int oCol = action.getOriginCol();
-            Cell currentCell = getGameSettings().get( oRow, oCol );
+            MoveAction action = pendingActions.remove( 0 );
             
-            int dRow = action.getDestinationRow();
-            int dCol = action.getDestinationCol();
-            Cell nextCell = getGameSettings().get( dRow, dCol );
+            PathCell current = getPathCell( action.getOriginRow(), action.getOriginCol() );
+            PathCell next = getPathCell( action.getDestinationRow(), action.getDestinationCol() );
             
-            Map<AgentType, List<Cell>> agentList = getGameSettings().getAgentList();
-            
-            for ( AgentType type : agentList.keySet() ){
-                List<Cell> cells = agentList.get( type );
-                for ( int i = 0; i < cells.size(); ++i ){
-                    
-                    Cell cell = cells.get( i );
-                    
-                    boolean sameRow = cell.getRow() == currentCell.getRow();
-                    boolean sameCol = cell.getCol() == currentCell.getCol();
-                    
-                    if ( sameRow && sameCol ){
-                        
-                        PathCell current = (PathCell) currentCell;
-                        Agents agents = current.getAgents();
-                        List<InfoAgent> infoAgents = agents.get( type );
-                        InfoAgent agent = infoAgents.get( 0 );
-                        
-                        try {
-                            current.removeAgent( agent );
-                        } catch (Exception ex) {
+            if ( next.getAgents().isEmpty() ){
+                
+                InfoAgent agent = null;
+                
+                for ( AgentType agentType : agentList.keySet() ){
+                    List<Cell> agentTypeCells = agentList.get( agentType );
+                    for ( int i = 0; i < agentTypeCells.size() && agent == null; ++i ){
+
+                        Cell cell = agentTypeCells.get( i );
+                        boolean sameRow = cell.getRow() == current.getRow();
+                        boolean sameCol = cell.getCol() == current.getCol();
+
+                        if ( sameRow && sameCol ){
+                            Agents agents = current.getAgents();
+                            List<InfoAgent> infoAgents = agents.get( agentType );
+                            agent = infoAgents.get( 0 );
+                            
+                            // Remove the agent from the current cell
+                            try {
+                                current.removeAgent( agent );
+                            } catch (Exception ex) {
+                            }
+
+                            // Add the agent to the next cell
+                            try {
+                                next.addAgent( agent );
+                            } catch (Exception ex) {
+                            }
+
+                            // Update the agents list
+                            agentTypeCells.set( i , next );
                         }
-                        
-                        PathCell next = (PathCell) nextCell;
-                        
-                        try {
-                            next.addAgent( agent );
-                        } catch (Exception ex) {
-                        }
-                        
-                        cells.set( i, nextCell );
                     }
                 }
+                
+            } else {
+                pendingActions.add( action );
             }
         }
+    }
+    
+    private PathCell getPathCell( int row, int col ){
+        
+        Cell cell = getGameSettings().get( row, col );
+        PathCell pCell = (PathCell) cell;
+        return pCell;
     }
 }
