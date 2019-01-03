@@ -25,8 +25,10 @@ import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class CleanerAgent extends ImasAgentTuned {
@@ -39,7 +41,7 @@ public class CleanerAgent extends ImasAgentTuned {
     
     private AstarPathFinderAlgorithm pathFinder;
     private final List<Cell> recyclingPoints; 
-    private final List<Cell> assignedWastes;
+    private final Map<Cell, Integer> assignedWastes;
     private final List<Cell> collectedWastes;
     private final List<AStarNode> wastesPath;
     private final List<String> actions;
@@ -54,7 +56,7 @@ public class CleanerAgent extends ImasAgentTuned {
     public CleanerAgent() {
         super( AgentType.CLEANER );
         this.recyclingPoints = new ArrayList<>();
-        this.assignedWastes = new ArrayList<>();
+        this.assignedWastes = new HashMap<>();
         this.collectedWastes = new ArrayList<>();
         this.wastesPath = new ArrayList<>();
         this.actions = new ArrayList<>();
@@ -122,6 +124,24 @@ public class CleanerAgent extends ImasAgentTuned {
         
         // Set the pathfinder algorithm
         this.pathFinder = new AstarPathFinderAlgorithm( gameSettings );
+        
+        // Assign the closest recycling point
+        Cell closestRecyclingPoint = null;
+        int pathSize = Integer.MAX_VALUE;
+        
+        for ( Cell recPoint : recyclingPoints ){
+            
+            AStarNode origin = new AStarNode( currentRow, currentCol );
+            Set<AStarNode> destinations = pathFinder.getSurroundingPathCells( recPoint );
+            List<AStarNode> path = pathFinder.findPath(origin, destinations);
+            if ( pathSize > path.size() ){
+                pathSize = path.size();
+                closestRecyclingPoint = recPoint;
+            }
+        }
+        
+        recyclingPoints.clear();
+        recyclingPoints.add( closestRecyclingPoint );
         
     }
     
@@ -287,9 +307,11 @@ public class CleanerAgent extends ImasAgentTuned {
         // Get the waste cell
         int wRow = proposal.getWasteRow();
         int wCol = proposal.getWasteCol();
-        Cell wasteCell = getGameSettings().get( wRow, wCol );
+        FieldCell wasteCell = (FieldCell) getGameSettings().get( wRow, wCol );
+        WasteType wasteType = WasteType.fromShortString( currentWasteType );
+        Integer amount = wasteCell.getWaste().get( wasteType );
         
-        assignedWastes.add( wasteCell );
+        assignedWastes.put( wasteCell, amount );
         
         // Create or modify the path
         switch( currentState ){
@@ -337,7 +359,7 @@ public class CleanerAgent extends ImasAgentTuned {
      * Actions performed when state is SEARCHING
      */
     private void performMovingActions(){
-        detectWastes();
+        detectAssignedWastes();
         moveAttempt();
     }
     
@@ -356,18 +378,31 @@ public class CleanerAgent extends ImasAgentTuned {
     }
     
     /**
-     * Detect wastes around the current position
+     * Detect assigned wastes around the current position
      */
-    private void detectWastes(){
-        Cell[] wastes = getGameSettings().detectFieldsWithWaste( currentRow, currentCol );
-        for ( Cell wasteCell : wastes ){
-            
-            if ( wasteCell != null ){
-                boolean assigned = assignedWastes.contains( wasteCell );
-                boolean collected = collectedWastes.contains( wasteCell );
+    private void detectAssignedWastes(){
+        
+        for ( int r = currentRow - 1; r < currentRow + 1; ++r ){
+            for ( int c = currentCol - 1; c < currentCol + 1; ++c ){
                 
-                if ( assigned && !collected ){
-                    currentState = State.COLLECTING;
+                if ( r != c ){
+                    Cell cell = getGameSettings().get( r, c );
+                    boolean assigned = assignedWastes.keySet().contains( cell );
+                    boolean collected = collectedWastes.contains( cell );
+                    if ( assigned && !collected ){
+                        currentState = State.COLLECTING;
+                        
+                        int amount = assignedWastes.get( cell );
+                        CollectAction action = new CollectAction(
+                                getLocalName(),
+                                ActionUtils.ACTION_COLLECT_START,
+                                cell.getRow() + "," + cell.getCol(),
+                                currentWasteType,
+                                String.valueOf( amount )
+                        );
+
+                        actions.add( action.toString() );
+                    }
                 }
             }
         }
@@ -438,32 +473,42 @@ public class CleanerAgent extends ImasAgentTuned {
      * Collect the wastes near the current position
      */
     private void collectWastes(){
-        Cell[] wastes = getGameSettings().detectFieldsWithWaste( currentRow, currentCol );
-        for ( Cell wasteCell : wastes ){
-            if ( wasteCell != null ){
-                boolean assigned = assignedWastes.contains( wasteCell );
-                boolean collected = collectedWastes.contains( wasteCell );
+        
+        boolean pendingWastes = false;
+        for ( int r = currentRow - 1; r < currentRow + 1; ++r ){
+            for ( int c = currentCol - 1; c < currentCol + 1; ++c ){
+                if ( r != c ){
+                    Cell cell = getGameSettings().get( r, c );
+                    boolean assigned = assignedWastes.keySet().contains( cell );
+                    boolean collected = collectedWastes.contains( cell );
+                    if ( assigned && !collected ){
+                        pendingWastes = true;
+                        FieldCell fCell = (FieldCell) cell;
                 
-                if ( assigned && !collected ){
-                    FieldCell fCell = (FieldCell) wasteCell;
-                
-                    fCell.removeWaste();
-                    --currentCapacity;
+                        fCell.removeWaste();
+                        --currentCapacity;
 
-                    if ( fCell.getWaste().isEmpty() ){
-                        currentState = State.MOVING;
-                        collectedWastes.add( wasteCell );
-                        
-                        CollectAction action = new CollectAction(
-                                getLocalName(),
-                                ActionUtils.ACTION_COLLECT,
-                                wasteCell.getRow() + "," + wasteCell.getCol()
-                        );
+                        if ( fCell.getWaste().isEmpty() ){
+                            collectedWastes.add( cell );
+                            
+                            int amount = assignedWastes.get( cell );
+                            CollectAction action = new CollectAction(
+                                    getLocalName(),
+                                    ActionUtils.ACTION_COLLECT_END,
+                                    cell.getRow() + "," + cell.getCol(),
+                                    currentWasteType,
+                                    String.valueOf( amount )
+                            );
 
-                        actions.add( action.toString() );
+                            actions.add( action.toString() );
+                        }
                     }
                 }
             }
+        }
+        
+        if ( !pendingWastes ){
+            currentState = State.MOVING;
         }
     }
     
@@ -472,18 +517,23 @@ public class CleanerAgent extends ImasAgentTuned {
      */
     private void recycleWastes(){
         
-        for ( Cell wasteCell : assignedWastes ){
+        for ( Cell wasteCell : assignedWastes.keySet() ){
+            
+            Integer amount = assignedWastes.get( wasteCell );
             
             RecycleAction action = new RecycleAction(
                     getLocalName(),
                     ActionUtils.ACTION_RECYCLE,
-                    wasteCell.getRow() + "," + wasteCell.getCol()
+                    wasteCell.getRow() + "," + wasteCell.getCol(),
+                    currentWasteType,
+                    String.valueOf( amount )
             );
 
             actions.add( action.toString() );
         }
         
         assignedWastes.clear();
+        collectedWastes.clear();
         
         currentState = State.WAITING;
         currentWasteType = "";
@@ -524,16 +574,11 @@ public class CleanerAgent extends ImasAgentTuned {
                         
                         // Check the capacity
                         int simulatedCapacity = 0;
-                        WasteType wType = WasteType.fromShortString( currentWasteType );
-                        for ( Cell cell : assignedWastes ){
-                            FieldCell fCell = (FieldCell) cell;
-                            try {
-                                int amount = fCell.getWaste().get( wType );
-                                simulatedCapacity += amount;
-                            } catch ( NullPointerException ex ){
-                                System.out.print("");
-                            }
+                        for ( Cell cell : assignedWastes.keySet() ){
+                            Integer amount = assignedWastes.get( cell );
+                            simulatedCapacity += amount;
                         }
+                        
                         simulatedCapacity += detection.getWasteAmount();
 
                         boolean notOverCapacity = simulatedCapacity <= maxCapacity;
