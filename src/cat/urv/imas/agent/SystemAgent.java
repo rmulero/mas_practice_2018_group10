@@ -28,8 +28,13 @@ import cat.urv.imas.map.CellType;
 import cat.urv.imas.map.PathCell;
 import cat.urv.imas.ontology.InfoAgent;
 import cat.urv.imas.ontology.MessageContent;
+import cat.urv.imas.ontology.WasteType;
 import cat.urv.imas.utils.ActionUtils;
+import cat.urv.imas.utils.StatisticalInformation;
+import cat.urv.imas.utils.actions.CollectAction;
+import cat.urv.imas.utils.actions.DetectAction;
 import cat.urv.imas.utils.actions.MoveAction;
+import cat.urv.imas.utils.actions.RecycleAction;
 import jade.core.*;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
@@ -47,6 +52,8 @@ import java.util.Random;
  */
 public class SystemAgent extends ImasAgentTuned {
 
+    private final StatisticalInformation statistics;
+    
     /**
      * GUI with the map, system agent log and statistics.
      */
@@ -63,6 +70,8 @@ public class SystemAgent extends ImasAgentTuned {
      */
     public SystemAgent() {
         super( AgentType.SYSTEM );
+        
+        this.statistics = new StatisticalInformation();
     }
 
     /**
@@ -254,8 +263,48 @@ public class SystemAgent extends ImasAgentTuned {
             requestActions();
             
         } else {
+            
+            String stats = getStatistics();
+            gui.showStatistics( stats );
+            
             log( "SIMULATION FINISHED" );
         }
+    }
+    
+    private String getStatistics(){
+        StringBuilder sb = new StringBuilder();
+        
+        int mUnits = statistics.getRecycledUnitsOfType( WasteType.MUNICIPAL.getShortString() );
+        int iUnits = statistics.getRecycledUnitsOfType( WasteType.INDUSTRIAL.getShortString() );
+        
+        sb.append( "\nWASTES TREATED\n" );
+        sb.append( "--------------\n" );
+        sb.append( "Municipal: " ).append( mUnits ).append( "\n" );
+        sb.append( "Industrial: " ).append( iUnits ).append( "\n\n" );
+        
+        float unitsPerCleaner = statistics.getAverageCollectedUnits();
+        sb.append( "UNITS OF WASTE PER CLEANER\n" );
+        sb.append( "--------------------------\n" );
+        List<Cell> cleaners = getGameSettings().getAgentList().get( AgentType.CLEANER );
+        for( int i = 0; i < cleaners.size(); ++i ){
+            String name = "clag" + i;
+            int units = statistics.getCollectedUnitsPerCleaner( name );
+            sb.append( name ).append( " = " ).append( units ).append( "\n" );
+        }
+        sb.append( "Average units per cleaner = " ).append( unitsPerCleaner ).append( "\n\n" );
+        
+        float averageDiscoveryTime = statistics.getAverageDiscoveryTime();
+        float averageCollectionTime = statistics.getAverageCollectionTime();
+        sb.append( "AVERAGE TIMES\n" );
+        sb.append( "-------------\n" );
+        sb.append( "Discovery = " ).append( averageDiscoveryTime ).append( "\n" );
+        sb.append( "Collection = " ).append( averageCollectionTime ).append( "\n\n" );
+        
+        float discoveryRatio = statistics.discoveredWastesRatio();
+        sb.append( "Discovered wastes ratio = ");
+        sb.append( discoveryRatio * 100 ).append( "%\n" );
+        
+        return sb.toString();
     }
     
     /////////////////////////////////////
@@ -294,15 +343,95 @@ public class SystemAgent extends ImasAgentTuned {
                     checkedActions.addAll( list );
                     break;
                     
-                case ActionUtils.ACTION_DETECT:
-                case ActionUtils.ACTION_COLLECT:
                 case ActionUtils.ACTION_RECYCLE:
+                    // Add recycled wastes statistics
+                    checkRecycled( list );
+                case ActionUtils.ACTION_DETECT:
+                case ActionUtils.ACTION_COLLECT_END:
+                case ActionUtils.ACTION_COLLECT_START:
                     checkedActions.addAll( list );
                     break;
             }
         }
         
+        // Add generated wastes statistics
+        checkGenerated();
+        
+        // Add detection statisticss
+        List<String> detections = actionsByType.get( ActionUtils.ACTION_DETECT );
+        if ( detections == null ){
+            detections = new ArrayList<>();
+        }
+        checkDetections( detections );
+        
+        // Add collection statistics
+        List<String> collects = actionsByType.get( ActionUtils.ACTION_COLLECT_START );
+        if ( collects == null ){
+            collects = new ArrayList<>();
+        }
+        checkCollections( collects );
+        
         return String.join( ActionUtils.DELIMITER_ACTION, checkedActions );
+    }
+    
+    private void checkGenerated(){
+        List<Cell> fields = getGameSettings().getCellsOfType().get( CellType.FIELD );
+        
+        List<Cell> wastes = new ArrayList<>();
+        for ( Cell cell : fields ){
+            String message = cell.getMapMessage();
+            if ( !message.isEmpty() ){
+                wastes.add( cell );
+            }
+        }
+        
+        statistics.addGeneratedWastes( wastes );
+    }
+    
+    private void checkDetections( List<String> actions ){
+        
+        List<Cell> cells = new ArrayList<>();
+        
+        for ( String action : actions ){
+            DetectAction detection = DetectAction.fromString( action );
+            
+            int row = detection.getWasteRow();
+            int col = detection.getWasteCol();
+            Cell cell = getGameSettings().get( row, col );
+            cells.add( cell );
+        }
+        
+        statistics.addDiscoveredWastes( cells );
+    }
+    
+    private void checkCollections( List<String> actions ){
+        List<Cell> cells = new ArrayList<>();
+        
+        for ( String action : actions ){
+            CollectAction collect = CollectAction.fromString( action );
+            
+            int row = collect.getWasteRow();
+            int col = collect.getWasteCol();
+            Cell cell = getGameSettings().get( row, col );
+            cells.add( cell );
+            
+            String agentName = collect.getAgent();
+            int amount = collect.getWasteAmount();
+            statistics.updateCleanerStats( agentName, amount );
+        }
+        
+        statistics.addCollectedWastes( cells );
+    }
+    
+    private void checkRecycled( List<String> actions ){
+        
+        for ( String action : actions ){
+            RecycleAction collect = RecycleAction.fromString( action );
+            
+            String type = collect.getWasteType();
+            int amount = collect.getWasteAmount();
+            statistics.updateRecycledWasteUnits( type, amount );
+        }
     }
     
     private void checkMoves( List<String> actions ){
@@ -314,6 +443,7 @@ public class SystemAgent extends ImasAgentTuned {
         }
         
         boolean isConflict;
+        int attempts = 5;
         do{
             // Check if the moves are allowed
             checkMovesContraint( moveActions );
@@ -325,8 +455,13 @@ public class SystemAgent extends ImasAgentTuned {
             boolean sameDestConflict = isSameDestinationConflict( moveActions );
             
             isConflict = emptyDestConflict || sameDestConflict;
+            --attempts;
             
-        } while( isConflict );
+        } while( isConflict && attempts > 0 );
+        
+        if ( isConflict ){
+            moveActions.clear();
+        }
         
         // Update actions list
         actions.clear();
@@ -334,8 +469,9 @@ public class SystemAgent extends ImasAgentTuned {
             actions.add( action.toString() );
         }
         
-        updateMap( moveActions );
-        
+        if ( !moveActions.isEmpty() ){
+            updateMap( moveActions );
+        }
     }
     
     private void checkMovesContraint( List<MoveAction> actions ){
@@ -525,7 +661,8 @@ public class SystemAgent extends ImasAgentTuned {
         
         Map<AgentType, List<Cell>> agentList = getGameSettings().getAgentList();
         
-        List<MoveAction> pendingActions = new ArrayList<>( actions );
+        List<MoveAction> pendingActions = new ArrayList<>();
+        pendingActions.addAll( actions );
         while( !pendingActions.isEmpty() ){
             
             MoveAction action = pendingActions.remove( 0 );
