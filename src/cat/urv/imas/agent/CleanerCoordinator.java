@@ -174,7 +174,7 @@ public class CleanerCoordinator extends ImasAgentTuned {
                     break;
                     
                 // Waste collected
-                case ActionUtils.ACTION_COLLECT:
+                case ActionUtils.ACTION_COLLECT_END:
                     CollectAction collectAction = CollectAction.fromString( update );
                     wasteRow = collectAction.getWasteRow();
                     wasteCol = collectAction.getWasteCol();
@@ -236,13 +236,13 @@ public class CleanerCoordinator extends ImasAgentTuned {
             int amount = fCell.getWaste().get( wType );
             
             DetectAction action = new DetectAction(
-                    getLocalName(),
-                    ActionUtils.ACTION_DETECT,
-                    fCell.getRow() + "," + fCell.getCol(), 
-                    wType.getShortString(), 
-                    String.valueOf( amount )
+                getLocalName(),
+                ActionUtils.ACTION_DETECT,
+                fCell.getRow() + "," + fCell.getCol(), 
+                wType.getShortString(), 
+                String.valueOf( amount )
             );
-            
+
             detections.add( action.toString() );
         }
         
