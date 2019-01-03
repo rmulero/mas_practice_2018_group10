@@ -15,13 +15,18 @@ public class CollectAction extends ActionBase {
     
     private final int wasteRow;
     private final int wasteCol;
+    private final String wasteType;
+    private final int wasteAmount;
     
-    public CollectAction( String agent, String action, String position ) {
+    public CollectAction( String agent, String action, String position, String type, String amount ) {
         super( agent, action );
         
         String[] coords = position.split( "," );
         this.wasteRow = Integer.valueOf( coords[ 0 ] );
         this.wasteCol = Integer.valueOf( coords[ 1 ] );
+        
+        this.wasteType = type;
+        this.wasteAmount = Integer.valueOf( amount );
     }
 
     public static CollectAction fromString( String actionStr ){
@@ -30,8 +35,10 @@ public class CollectAction extends ActionBase {
         String agent = parts[ 0 ];
         String action = parts[ 1 ];
         String position = parts[ 2 ];
+        String type = parts[ 3 ];
+        String amount = parts[ 4 ];
         
-        return new CollectAction(agent, action, position);
+        return new CollectAction(agent, action, position, type, amount);
     }
     
     public int getWasteRow() {
@@ -42,13 +49,23 @@ public class CollectAction extends ActionBase {
         return wasteCol;
     }
     
+    public String getWasteType() {
+        return wasteType;
+    }
+
+    public int getWasteAmount() {
+        return wasteAmount;
+    }
+    
     @Override
     public String toString() {
         
         String[] parts = {
             getAgent(),
             getAction(),
-            getWasteRow() + "," + getWasteCol()
+            getWasteRow() + "," + getWasteCol(),
+            getWasteType(),
+            String.valueOf( getWasteAmount() )
         };
         
         String str = String.join( ActionUtils.DELIMITER_PART, parts );
