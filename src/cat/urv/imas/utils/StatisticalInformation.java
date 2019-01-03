@@ -5,6 +5,7 @@
  */
 package cat.urv.imas.utils;
 
+import cat.urv.imas.map.Cell;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,10 +17,11 @@ import java.util.Map;
  */
 public class StatisticalInformation {
     
-    private final List<List<String>> generatedWastes;
-    private final List<String> lastWastes;
-    private final List<List<String>> discoveredWastes;
-    private final List<List<String>> collectedWastes;
+    private final List<List<Cell>> generatedWastes;
+    private final List<Cell> lastWastes;
+    private final List<List<Cell>> discoveredWastes;
+    private final List<Cell> lastDiscovered;
+    private final List<List<Cell>> collectedWastes;
     private final Map<String, Integer> cleanerUnits;
     private final Map<String, Integer> recycledUnits;
     
@@ -27,18 +29,19 @@ public class StatisticalInformation {
         this.generatedWastes = new ArrayList<>();
         this.lastWastes = new ArrayList<>();
         this.discoveredWastes = new ArrayList<>();
+        this.lastDiscovered = new ArrayList<>();
         this.collectedWastes = new ArrayList<>();
         this.cleanerUnits = new HashMap<>();
         this.recycledUnits = new HashMap<>();
     }
     
-    public void addGeneratedWastes( List<String> wastes ){
+    public void addGeneratedWastes( List<Cell> wastes ){
         
         if ( generatedWastes.isEmpty() ){
             generatedWastes.add( wastes );
             
         } else {
-            List<String> changes = new ArrayList<>();
+            List<Cell> changes = new ArrayList<>();
             
             changes.addAll( wastes );
             changes.removeAll( lastWastes );
@@ -50,11 +53,25 @@ public class StatisticalInformation {
         lastWastes.addAll( wastes );
     }
     
-    public void addDiscoveredWastes( List<String> wastes ){
-        discoveredWastes.add( wastes );
+    public void addDiscoveredWastes( List<Cell> wastes ){
+        
+        if ( discoveredWastes.isEmpty() ){
+            discoveredWastes.add( wastes );
+            
+        } else {
+            List<Cell> changes = new ArrayList<>();
+            
+            changes.addAll( wastes );
+            changes.removeAll( lastDiscovered );
+            
+            discoveredWastes.add( changes );
+        }
+        
+        lastDiscovered.clear();
+        lastDiscovered.addAll( wastes );
     }
     
-    public void addCollectedWastes( List<String> wastes ){
+    public void addCollectedWastes( List<Cell> wastes ){
         collectedWastes.add( wastes );
     }
     
@@ -90,18 +107,27 @@ public class StatisticalInformation {
     }
     
     /**
+     * Get the collected wastes units of the given cleaner
+     * @param cleaner Local name of the cleaner agent
+     * @return Number of units collected by the given agent
+     */
+    public int getCollectedUnitsPerCleaner( String cleaner ){
+        Integer units = cleanerUnits.get( cleaner );
+        if ( units == null ){
+            return 0;
+        }
+        return units;
+    }
+    
+    /**
      * Get the average of collected units per cleaner
      * @return Average of collected units per cleaner
      */
     public float getAverageCollectedUnits(){
         List<Integer> unitsPerCleaner = new ArrayList();
         for ( String cleaner : cleanerUnits.keySet() ){
-            Integer units = cleanerUnits.get( cleaner );
-            if (units == null){
-                unitsPerCleaner.add( 0 );
-            } else {
-                unitsPerCleaner.add( units );
-            }
+            int units = getCollectedUnitsPerCleaner( cleaner );
+            unitsPerCleaner.add( units );
         }
         
         float sum = 0;
@@ -123,12 +149,12 @@ public class StatisticalInformation {
         
         for ( int genStep = 0; genStep < generatedWastes.size(); ++genStep ){
             
-            List<String> genWastes = generatedWastes.get(genStep );
-            for ( String waste : genWastes ){
+            List<Cell> genWastes = generatedWastes.get(genStep );
+            for ( Cell waste : genWastes ){
                 
                 boolean found = false;
                 for ( int disStep = genStep; disStep < discoveredWastes.size() && !found; ++disStep ){
-                    List<String> disWastes = discoveredWastes.get( disStep );
+                    List<Cell> disWastes = discoveredWastes.get( disStep );
                     if ( disWastes.contains( waste ) ){
                         found = true;
                         steps.add( disStep - genStep );
@@ -156,16 +182,26 @@ public class StatisticalInformation {
         
         for ( int disStep = 0; disStep < discoveredWastes.size(); ++disStep ){
             
-            List<String> disWastes = discoveredWastes.get( disStep );
-            for ( String waste : disWastes ){
+            List<Cell> disWastes = discoveredWastes.get( disStep );
+            for ( Cell waste : disWastes ){
                 
                 boolean found = false;
+                int foundAt = discoveredWastes.size() - 1;
                 for ( int colStep = disStep; colStep < collectedWastes.size() && !found; ++colStep ){
-                    List<String> colWastes = collectedWastes.get(colStep );
+                    List<Cell> colWastes = collectedWastes.get( colStep );
                     if ( colWastes.contains( waste ) ){
                         found = true;
+                        foundAt = colStep;
                         steps.add( colStep - disStep );
                     }
+                }
+                
+                for ( int step = foundAt; step > disStep; --step ){
+                    List<Cell> dWastes = discoveredWastes.get( step );
+                    boolean inList;
+                    do{
+                        inList = dWastes.remove( waste );
+                    } while ( inList );
                 }
             }
         }
@@ -185,12 +221,12 @@ public class StatisticalInformation {
      */
     public float discoveredWastesRatio(){
         float discovered = 0;
-        for ( List<String> wastes : discoveredWastes ){
+        for ( List<Cell> wastes : discoveredWastes ){
             discovered += wastes.size();
         }
         
         float total = 0;
-        for ( List<String> wastes : generatedWastes ){
+        for ( List<Cell> wastes : generatedWastes ){
             total += wastes.size();
         }
         
