@@ -382,10 +382,15 @@ public class CleanerAgent extends ImasAgentTuned {
      */
     private void detectAssignedWastes(){
         
-        for ( int r = currentRow - 1; r < currentRow + 1; ++r ){
-            for ( int c = currentCol - 1; c < currentCol + 1; ++c ){
+        int[] rows = { currentRow - 1, currentRow, currentRow + 1 };
+        int[] cols = { currentCol - 1, currentCol, currentCol + 1 };
+        
+        for ( int r : rows ){
+            for ( int c : cols ){
                 
-                if ( r != c ){
+                boolean currentCell = ( r == currentRow && c == currentCol );
+                
+                if ( !currentCell ){
                     Cell cell = getGameSettings().get( r, c );
                     boolean assigned = assignedWastes.keySet().contains( cell );
                     boolean collected = collectedWastes.contains( cell );
@@ -475,9 +480,14 @@ public class CleanerAgent extends ImasAgentTuned {
     private void collectWastes(){
         
         boolean pendingWastes = false;
-        for ( int r = currentRow - 1; r < currentRow + 1; ++r ){
-            for ( int c = currentCol - 1; c < currentCol + 1; ++c ){
-                if ( r != c ){
+        int[] rows = { currentRow - 1, currentRow, currentRow + 1 };
+        int[] cols = { currentCol - 1, currentCol, currentCol + 1 };
+        
+        for ( int r : rows ){
+            for ( int c : cols ){
+                
+                boolean currentCell = ( r == currentRow && c == currentCol );
+                if ( !currentCell ){
                     Cell cell = getGameSettings().get( r, c );
                     boolean assigned = assignedWastes.keySet().contains( cell );
                     boolean collected = collectedWastes.contains( cell );
